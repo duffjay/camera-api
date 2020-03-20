@@ -28,6 +28,13 @@ $ conda activate labelimg
 $ cd ~/projects/labelImg  
 $ python labelImg.py  
 
+## labeled images -> tfrecords
+hint:  tar xvf tarball.tar.gz  --strip-components=1  
+
+put annotations (xml) in annotations/  
+put images in jpg_images/  
+
+
 
 
 

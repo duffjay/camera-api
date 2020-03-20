@@ -130,3 +130,9 @@ dmypy.json
 
 # -- jay --
 app_config.json
+snapshot/*.xml
+snapshot/*.jpg
+jpeg_images/*.jpg
+annotation/*.xml
+
+*.tar.gz

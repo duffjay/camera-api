@@ -5,12 +5,14 @@
         "port" : 80,
         "username" : "admin",
         "password" : "",
+        "mfr" : "Amcrest",
         "flip" : ""},
         {"name" : "4eyes",
         "ip" : "192.168.1.109",
         "port" : 80,
         "username" : "admin",
         "password" : "",
+        "mfr" : "Amcrest",
         "flip" : "vert"}
     ],
     "model" : {

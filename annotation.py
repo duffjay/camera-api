@@ -46,9 +46,10 @@ def make_annotation_xml_string(folder, filename, image_dim, objects_xml, verifie
     return base
 
 def inference_to_xml(image_dir, image_basename, orig_image_dim, detected_objects, annotation_dir):
-    print(image_dir, image_basename)
-    print(detected_objects)
-    print(annotation_dir)
+    '''
+    image_dir because we put the path in the XML
+    '''
+
     verified_str = ''' verified="no"'''
     objects_xml_string = make_objects_xml_string(detected_objects)
     annotation_xml_string = make_annotation_xml_string(image_dir, image_basename, orig_image_dim, 

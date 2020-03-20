@@ -84,9 +84,11 @@ def get_tflite_attributes(interpreter):
     print ("Model Input Dimension: {}".format(model_input_dim))
     return model_image_dim, model_input_dim, output_details
 
-def send_image_to_model(preprocessed_image, interpreter):
-    # model inference
-    start_time = time.time()
+def send_image_to_model(preprocessed_image, interpreter, threshold):
+    '''
+    send the image into the model
+    return only inferences with probability > threshold
+    '''
     # input (image) is (1,300,300,3) - shaped like a batch of size 1
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
@@ -102,10 +104,11 @@ def send_image_to_model(preprocessed_image, interpreter):
     class_data = interpreter.get_tensor(output_details[1]['index'])[0]
     prob_data = interpreter.get_tensor(output_details[2]['index'])[0]
 
-    finish_time = time.time()
-    print("time spent: {:.4f}".format(finish_time - start_time))
-
-    return bbox_data, class_data, prob_data
+    reduction_index = np.argwhere((prob_data > threshold) & (prob_data <= 1.0))
+    if reduction_index.size > 0:
+        return bbox_data[reduction_index], class_data[reduction_index], prob_data[reduction_index]
+    else:
+        return None, None, None
 
 def load_image_into_numpy_array(image_path):
     image = cv2.imread(image_path)
