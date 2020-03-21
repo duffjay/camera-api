@@ -4,6 +4,7 @@ RESTful API for Amcrest cameras
 ## Python 3.7
 pip install flask  
 pip install opencv-python  
+pip install imutils  
 
 Tensorflow or just the TFLite Interpreter?  Well, you will be using a lot of tf.* utilities  
 pip install tensorflow-gpu==1.15 

@@ -3,6 +3,7 @@ import sys
 import time
 import cv2
 import numpy as np
+import imutils
 
 import camera_util
 import gen_util
@@ -101,21 +102,21 @@ def calc_iou_with_previous(region_id, bbox_stack_list, bbox_push_list, bbox_arra
                                                             # zero based index so subtract 1
     bbox_push_list[region_id].pop(0)                        # pop the first
 
-    print ("----- AFTER -----")
-    print ("-- bbox_stack ", bbox_stack.shape)
-    print ("-- bbox       ", bbox.shape)
+    # print ("----- AFTER -----")
+    # print ("-- bbox_stack ", bbox_stack.shape)
+    # print ("-- bbox       ", bbox.shape)
     bbox_stack_list[region_id] = np.append(bbox_stack, bbox, 0)
-    print ("-- box_stack_list-appended", region_id, bbox_stack_list[region_id].shape)
-    print ("Stack BEFORE delete:", bbox_stack_list[region_id])
+    # print ("-- box_stack_list-appended", region_id, bbox_stack_list[region_id].shape)
+    # print ("Stack BEFORE delete:", bbox_stack_list[region_id])
 
-    print ("Slice:", objects_to_remove)
+    # print ("Slice:", objects_to_remove)
     bbox_stack_list[region_id] = np.delete(bbox_stack_list[region_id], slice(0, objects_to_remove), 0)
 
-    print ("Match Counts:", match_counts)
-    print ("Stack After:", bbox_stack_list[region_id])
-    print ("Push List:", bbox_push_list[region_id])
+    # print ("Match Counts:", match_counts)
+    # print ("Stack After:", bbox_stack_list[region_id])
+    # print ("Push List:", bbox_push_list[region_id])
 
-    print (" -- match counts:", match_counts)
+    # print (" -- match counts:", match_counts)
     return match_counts
 
 
@@ -149,8 +150,17 @@ def run_inference(image, base_name, region, region_idx, bbox_stack_list, bbox_pu
     preprocessed_image = tensorflow_util.preprocess_image(image, interpreter, model_image_dim, model_input_dim)
     # run the model
     bbox_array, class_id_array, prob_array = tensorflow_util.send_image_to_model(preprocessed_image, interpreter, PROBABILITY_THRESHOLD)
+
     # check detected objects against the stack
-    match_counts = calc_iou_with_previous(region_idx, bbox_stack_list, bbox_push_list, bbox_array)
+    new_objects = 0
+    dup_objects = 0
+    if prob_array is not None:
+        match_counts = calc_iou_with_previous(region_idx, bbox_stack_list, bbox_push_list, bbox_array)
+        for match_count in match_counts:
+            if match_count >= 3:
+                dup_objects = dup_objects + 1
+            else:
+                new_objects = new_objects + 1
 
     inference_image, orig_image_dim, detected_objects = display.inference_to_image( 
             image,
@@ -166,16 +176,17 @@ def run_inference(image, base_name, region, region_idx, bbox_stack_list, bbox_pu
     # detected_objects = list [ (class_id, class_name, probability, xmin, ymin, xmax, ymax)]
     if len(detected_objects) > 0:
         print ("       Objects:", base_name, detected_objects)
-        if save_inference:
+        if save_inference and new_objects > 0:
             image_name = os.path.join(image_path,  base_name + '.jpg')
             annotation_name = os.path.join(annotation_path,  base_name + '.xml')
             # print ("saving:", image_name, image.shape, annotation_name)
             # original image - h: 480  w: 640
+            print ("  Saved: match count: {}  new objects: {}   image_name: {}".format( match_counts, new_objects, image_name))
             cv2.imwrite(image_name, orig_image)
             # this function generates & saves the XML annotation
             annotation_xml = annotation.inference_to_xml(image_path, image_name,orig_image_dim, detected_objects, annotation_path )
-
-        
+        elif save_inference and new_objects == 0:
+            print ("  No new objects detected --- not saved")
 
     return inference_image, detected_objects, bbox_array
 
@@ -231,11 +242,12 @@ def main():
     while True:
 
         start_time = time.time()
-        base_name = str(int(start_time))
+        base_name = "{}_{}".format(str(int(start_time)), camera_number)
         # frame returned as a numpy array ready for cv2
         # not resized
+        angle = camera_config['rotation_angle']
         frame = camera_util.get_reolink_snapshot(url, camera_config['username'], camera_config['password'])
-
+        frame = imutils.rotate(frame, angle)
         if frame is not None:
             orig_image_dim = (frame.shape[0], frame.shape[1])    #  dim = (height, width),
             orig_image = frame.copy()                            # preserve the original - full resolution
@@ -256,7 +268,7 @@ def main():
                     # enlarged_inference = cv2.resize(inference_image, (1440, 1440), interpolation = cv2.INTER_AREA)
                     window_name = "{} crop {}".format(camera_name, i)
                     cv2.imshow(window_name, inference_image)   # show the inferance
-                    input("-- main run inferences region loop ---")
+
                 print ('   TOTAL inference: {0:.2f} seconds'.format(time.time() - inference_start_time))
 
             else:

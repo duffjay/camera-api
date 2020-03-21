@@ -107,9 +107,4 @@ def config_camera_regions(camera_config):
             region_push_list.append(1)
         bbox_push_list.append(region_push_list)
 
-    print ("--- config camera regions ---")
-    print (bbox_stack_list)
-    print (bbox_push_list)
-    print (regions)
-
     return regions, bbox_stack_list, bbox_push_list
