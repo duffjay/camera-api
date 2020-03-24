@@ -104,7 +104,9 @@ def send_image_to_model(preprocessed_image, interpreter, threshold):
     class_data = interpreter.get_tensor(output_details[1]['index'])[0]
     prob_data = interpreter.get_tensor(output_details[2]['index'])[0]
 
-    print ("DEBUG prob_data:", prob_data)
+    # print ("DEBUG prob_data:", prob_data)
+    prob_data = np.nan_to_num(prob_data)   # replace nan with 0
+    bbox_data = np.nan_to_num(bbox_data)
     reduction_index = np.argwhere((prob_data > threshold) & (prob_data <= 1.0))
     if reduction_index.size > 0:
         return bbox_data[reduction_index], class_data[reduction_index], prob_data[reduction_index]

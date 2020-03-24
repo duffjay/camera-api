@@ -62,7 +62,7 @@ def get_reolink_snapshot(url, username, password):
             + "&password=" + password
 
     try:
-        reader = urllib.request.urlopen(snap)
+        reader = urllib.request.urlopen(snap, timeout=10)
         img_bytes = bytearray(reader.read())
         img_array = Image.open(io.BytesIO(img_bytes))
         img_numpy = numpy.array(img_array)

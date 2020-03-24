@@ -79,10 +79,10 @@ def calc_iou_with_previous(region_id, bbox_stack_list, bbox_push_list, bbox_arra
     bbox_stack = bbox_stack_list[region_id]
     bbox = bbox_array.reshape(-1,4)
 
-    print ("\n\n ---- BEFORE ----")
-    print ("Stack Before:", bbox_stack)
-    print ("bbox:", bbox)
-    print ("push list BEFORE:", bbox_push_list[region_id])
+    # print ("\n\n ---- BEFORE ----")
+    # print ("Stack Before:", bbox_stack)
+    # print ("bbox:", bbox)
+    # print ("push list BEFORE:", bbox_push_list[region_id])
 
     match_rates = iou(bbox_stack, bbox)
     det_obj_count = bbox.shape[0]
@@ -247,13 +247,14 @@ def main():
         # not resized
         angle = camera_config['rotation_angle']
         frame = camera_util.get_reolink_snapshot(url, camera_config['username'], camera_config['password'])
-        frame = imutils.rotate(frame, angle)
+
         if frame is not None:
+            frame = imutils.rotate(frame, angle)                 # rotate frame
             orig_image_dim = (frame.shape[0], frame.shape[1])    #  dim = (height, width),
             orig_image = frame.copy()                            # preserve the original - full resolution
             # corner is top left
         
-            print ('\n-- snap captured: {}'.format(frame.shape), '{0:.2f} seconds'.format(time.time() - start_time))
+            print ('\n-- {} snap captured: {}'.format(snapshot_count, frame.shape), '{0:.2f} seconds'.format(time.time() - start_time))
 
             # True == run it through the model
             if run_inferences:

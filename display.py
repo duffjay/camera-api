@@ -8,7 +8,7 @@ import cv2
 BBOX_COLOR = list(
                 (
                     (80,80,80),
-                    (0,120,120),
+                    (120,120,120),
                     (120,120,0),
                     (120,0,0),
                     (0,120,0),
@@ -21,8 +21,35 @@ BBOX_COLOR = list(
                     (0,0,128)
                 )
             )
+#
+#  standing outside with an umbrella generates 
+#  crazy big bbox dimensions - causing an error
+#
+def validate_bbox(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax):
+    # print ("INPUT: {} {}".format(orig_image_height, orig_image_width))
+    truncated = 0
+    print ("bbox validate - before: {} {} ({} {}), ({}, {})".format(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax), truncated)
 
+    if xmin > orig_image_width:
+        xmin = orig_image_width
+        truncated = 1
 
+    if ymin > orig_image_height:
+        ymin = orig_image_height
+        truncated = 1
+
+    if xmax > orig_image_width:
+        xmax = orig_image_width
+        truncated = 1
+    if ymax > orig_image_height:
+        ymax = orig_image_height
+        truncated = 1
+
+    # if truncated == 1:
+    #     print ("   !!! bbox dimensions clipped !!!")
+    
+    # print ("bbox validate -  after: {} {} ({} {}), ({}, {})".format(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax), truncated)
+    return xmin, ymin, xmax, ymax
 
 def inference_to_image( 
         orig_image,
@@ -64,6 +91,8 @@ def inference_to_image(
                 # draw the bbox - get the color from global color list
                 # limited colors defined
                 bbox_color_id = class_id % 12
+
+                xmin, ymin, xmax, ymax = validate_bbox(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax)
                 cv2.rectangle(orig_image, (xmin,ymin), (xmax, ymax), color=BBOX_COLOR[bbox_color_id],thickness=2)
                 # write the class name on the box
                 cv2.putText(orig_image, "{} - {:.2f}".format(label_dict[class_id], prob_array[i][0]), 

@@ -23,6 +23,9 @@ def write_imageset_to_file(imageset_dir, set_name, image_list):
     print ('   imageset: ', file_path, " : ", image_count, " written")
             
 
+#
+# DEPRECATED - use filter_unverified, it will return both lists
+#
 def filter_verified(dir_path, file_list):
     verified_list = []
     not_list = []
@@ -37,11 +40,36 @@ def filter_verified(dir_path, file_list):
     print ('  verified:', len(verified_list), '  not:', len(not_list))
     return verified_list
 
+#
+# NOTE - identical to fltered_verifiect
+#      - but returns both lists, verified AND not_verifiec
+def group_on_verified(dir_path, file_list):
+    '''
+    Return list of annotations that are NOT verified
+    '''
+    verified_list = []
+    not_list = []
+    for file_name in file_list:
+        with open(os.path.join(dir_path, file_name)) as f:
+            soup = BeautifulSoup(f, 'xml')
+            v = soup.findAll("annotation", {"verified" : "yes"})    # v - only if verified = yes
+            if len(v) == 0:
+                not_list.append(os.path.splitext(file_name)[0])   # not used
+            else: 
+                verified_list.append(os.path.splitext(file_name)[0])
+    print ('  verified:', len(verified_list), '  not:', len(not_list))
+    return verified_list, not_list
+
 # get the annotation file list for given directory - then filter to KEEP only the verified ones
 def verif_annotation_list(dir_path):
     file_list = [f for f in listdir(dir_path) if isfile(join(dir_path, f))]  # full annotation file list
     verified_list = filter_verified(dir_path, file_list)  # filter this file list KEEPING only the validated annotations
     return verified_list
+
+def group_annotation_list(dir_path):
+    file_list = [f for f in listdir(dir_path) if isfile(join(dir_path, f))]  # full annotation file list
+    verified_list, not_verified_list = group_on_verified(dir_path, file_list)  # filter this file list KEEPING only the validated annotations
+    return verified_list, not_verified_list
 
 # create the image set
 #     
