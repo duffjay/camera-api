@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 #
-#  this will install the tensorflow/models repo - in ~/projects/
+#  this will install the tensorflow/models repo
 #  - you need this for the actual model and a bunch of utilities
 #  - it will also compmile the protobufs
 #
@@ -9,7 +9,7 @@
 # MUST BE in <top project folder>/tasks
 # clone the repo into code/models
 echo "--- git clone ---"
-cd ~/projects
+cd ${HOME}/projects
 git clone https://github.com/tensorflow/models.git
 
 # get the protobuf compiler
