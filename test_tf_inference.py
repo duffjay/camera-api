@@ -51,11 +51,23 @@ for i,image_path in enumerate(image_list):
     start = time.perf_counter()
     # -- run model
     output_dict = tensorflow_util.send_image_to_tf_sess(image_np_expanded, sess, tensor_dict, image_tensor)
+    print ("Output dict: \n", output_dict)
 
-    # print ("Detection:", output_dict)
+    # get data for relavant detections
+    num_detections = output_dict['num_detections']
+    detection_scores = output_dict['detection_scores'][0:num_detections]
+    detection_classes = output_dict['detection_classes'][0:num_detections]
+    detection_boxes = output_dict['detection_boxes'][0:num_detections]
+
+    print ("Number of Detections:", num_detections)
+    print ("scores:", detection_scores)
+    print ("classes:", detection_classes)
+    print ("bboxes:", detection_boxes)
+
+
     finish = time.perf_counter()
     print (f'Finished in {round(finish - start, 2)} seconds(s)')
-    if i > 100:
+    if i > 2:
         break
 
 
