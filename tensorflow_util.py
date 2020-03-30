@@ -19,13 +19,49 @@ from google.protobuf import text_format
 from object_detection.protos import string_int_label_map_pb2
 #import tflite_runtime.interpreter as tflite
 
-# Helper Function
-# load an image and resturn a numpy array
+import label_map_util
 
+# H E L P E R    F U N C T I O N S
+
+# load an image and resturn a numpy array
 def load_image_into_numpy_array(image):
   (im_width, im_height) = image.size
   return np.array(image.getdata()).reshape(
       (im_height, im_width, 3)).astype(np.uint8)
+
+# C O N F I G U R A T I O N
+
+def configure_model(model_config):
+    print (model_config)
+    framework = model_config['model_framework']
+    model_path = os.path.join('model', model_config['model_path'])
+    #
+    # S S D   M O D E L   F R A M E W O R K
+    # TF Lite
+    if framework == 'tflite':
+        interpreter = tensorflow_util.get_tflite_interpreter(model_path)
+        model_image_dim, model_input_dim, output_details = get_tflite_attributes(interpreter)
+        sess = None
+    
+    # TensorFlow  Frozen Graph
+    elif framework == "tensorflow":
+        # get a frozen graph
+        detection_graph = get_detection_graph(model_path)
+        sess, tensor_dict, image_tensor = get_tf_session(detection_graph)
+        interpreter = None
+        output_details = None
+
+    label_map = model_config['label_map']
+    label_dict = label_map_util.get_label_map_dict(label_map, 'id')
+
+    # Model Input Dimensions
+    # - tflite will give it to you, but not tensorflow frozen graph
+    #   so I put it in the config - this is overwriting whatever tflite reported - beware
+    model_input_dim = model_config['model_input_dim']
+    model_image_dim = (model_config['model_input_dim'][1], model_config['model_input_dim'][2])
+    print ("Model Framework: {}   model input dim: {}   image dim: {}".format(framework, model_input_dim, model_image_dim))
+    print ("      Label Map: {}".format(label_map))
+    return framework, interpreter, sess, model_input_dim, output_details, label_map, label_dict
 
 def make_objects(boxes, class_ids_rev):
     '''

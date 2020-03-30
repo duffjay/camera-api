@@ -5,9 +5,13 @@ import random
 import string
 import urllib
 import numpy as np
+import time
 
 from PIL import Image
+import cv2
+import imutils
 
+# DEPRECATED
 def get_camera_config(config, camera_num):
     '''
     given the config JSON and a camera number, 
@@ -16,6 +20,7 @@ def get_camera_config(config, camera_num):
     camera_config = config['camera'][camera_num]
     return camera_config
 
+# DEPRECATED
 def DELETE_get_camera(ip, port, username, password, mfr):
     '''
     get the camera object
@@ -108,3 +113,58 @@ def config_camera_regions(camera_config):
         bbox_push_list.append(region_push_list)
 
     return regions, bbox_stack_list, bbox_push_list
+
+def extract_regions(config, image):
+    regions_config = config['regions']
+
+    for i, region in enumerate(regions_config):
+        ymin = region[0]
+        xmin = region[1]
+        ymax = ymin + region[2]
+        xmax = xmin + region[3]
+        # extract (crop it out)
+        regional_image = image[ymin:ymax, xmin:xmax]
+        # resize to 480x640 -- but it's (width, height) !!
+        width = 640
+        height = 480
+        dim = (width, height)
+        # resize image
+        resized_image = cv2.resize(regional_image, dim, interpolation = cv2.INTER_AREA)
+        # reshape to (1,480,640,3)
+        np_image = resized_image.reshape((1,height,width,3))
+
+        if i == 0:
+            np_images = np_image
+        else:
+            np_images = np.append(np_images, np_image, 0)
+
+    return np_images
+# 
+#
+# Given camera config
+#   get frame
+#   extract regions
+#   return numpy array [regions, 480, 640, 3]
+def get_camera_regions(config):
+    start = time.perf_counter()
+    print (config)
+
+    name = config['name']
+    url = get_reolink_url('http', config['ip'])
+    username = config['username']
+    password = config['password']
+    rotation_angle = int(config['rotation_angle'])
+
+    full_image = get_reolink_snapshot(url, username, password)
+
+    # rotate the image
+    rot_full_image = imutils.rotate(full_image, rotation_angle) 
+
+    if full_image is not None:
+        print ("Camera: {} {} -- Frame Captured".format(name, start))
+        np_images = extract_regions(config, rot_full_image)
+    else:
+        print ("Camera: {} {} -- snapshot timeout".format(name, start))
+        np_images = None
+    
+    return name, np_images
