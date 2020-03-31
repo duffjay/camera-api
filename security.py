@@ -2,6 +2,9 @@ import os
 import sys
 import time
 import cv2
+import threading
+import queue
+import numpy as np
 
 # add the tensorflow models project to the Python path
 # github tensorflow/models
@@ -19,6 +22,62 @@ import gen_util
 import label_map_util
 import tensorflow_util
 import camera_util
+
+# globals
+
+safeprint = threading.Lock()
+imageQueue = queue.Queue()
+inferenceQueue = queue.Queue()
+run_state = True
+
+
+def image_producer(camera_id, camera_config, imageQueue):
+    while True:
+        camera_name, np_images = camera_util.get_camera_regions(camera_config)
+        if np_images is not None:
+            image_time = time.time()
+            imageQueue.put((camera_id, camera_name, image_time, np_images))
+            with safeprint:
+                print ("  IMAGE-PRODUCER:>>{} np_images: {}".format(camera_name, np_images.shape))
+        else:
+            with safeprint:
+                print ("  IMAGE-PRODUCER:--{} np_images: None".format(camera_name))
+        # stop?        
+        global run_state                        # use a global to shut down the thread
+        if run_state == False:
+            break
+    return
+
+# Pull images off the imageQueue
+# - produce inferences
+def image_consumer(consumer_id, imageQueue, sess, tensor_dict, image_tensor):
+    while True:
+        try:
+            data = imageQueue.get(block=False)
+            camera_id, camera_name, image_time, np_images = data
+            start = time.perf_counter()
+            for i, np_image in enumerate(np_images):
+                np_image_expanded = np.expand_dims(np_image, axis=0)
+                # -- run model
+                output_dict = tensorflow_util.send_image_to_tf_sess(np_image_expanded, sess, tensor_dict, image_tensor)
+                # get data for relavant detections
+                num_detections = output_dict['num_detections']
+                detection_scores = output_dict['detection_scores'][0:num_detections]
+                detection_classes = output_dict['detection_classes'][0:num_detections]
+                detection_boxes = output_dict['detection_boxes'][0:num_detections]
+                with safeprint:
+                    print ('  IMAGE-CONSUMER:<<Camera Name:', camera_name, (time.perf_counter() - start))
+                    for i in range(num_detections):
+                        print ('      region {}  classes detected{}'.format(i, detection_classes))
+        except queue.Empty:
+            pass
+
+        # stop?
+        # ?? why no global run_state here ??
+        if run_state == False:
+            break
+    time.sleep(0.5)
+    return
 
 def main():
     # args
@@ -39,25 +98,47 @@ def main():
 
     # configure the model
     model_config = config["model"]
-    framework, tflite_interpreter, tensorflow_session, model_input_dim, output_details, label_map, label_dict = tensorflow_util.configure_model(model_config)
+    sess, tensor_dict, image_tensor, model_input_dim, label_map, label_dict = tensorflow_util.configure_tensorflow_model(model_config)
 
     # camera config
     camera_config_list = config['camera']
     camera_count = len(camera_config_list)
     print ("Camera Count:", camera_count)
 
-    for camera_config in camera_config_list:
-        camera_name, np_images = camera_util.get_camera_regions(camera_config)
-        if np_images is not None:
-            print ("np_images:", np_images.shape)
-            for i, image in enumerate(np_images):
-                print ("image {}  shape {}".format(i, image.shape))
+    global run_state
+    run_state = True
+    #   I M A G E    C O N S U M E R S
+    #   == inference producers
+    # 
+    for i in range(len(camera_config_list)):
+        thread = threading.Thread(target=image_consumer, args=(i, imageQueue, sess, tensor_dict, image_tensor))
+        thread.daemon = True
+        thread.start()
 
-                window_name = "{}-{}".format(camera_name, i)
-                cv2.imshow(window_name,image)
-            cv2.waitKey(0)
-        else:
-            print ("nothing returned")
+    #   I M A G E    P R O D U C E R S
+    #    
+    for camera_id, camera_config in enumerate(camera_config_list):
+        thread = threading.Thread(target=image_producer, args=(camera_id, camera_config, imageQueue))
+        thread.start()
+
+    time.sleep(60)
+    print ("main() sleep timed out")
+    run_state = False
+    print ("main() exit")
+
+
+
+        # camera_name, np_images = camera_util.get_camera_regions(camera_config)
+        # if np_images is not None:
+        #     print ("np_images:", np_images.shape)
+        #     for i, image in enumerate(np_images):
+        #         print ("image {}  shape {}".format(i, image.shape))
+
+        #         window_name = "{}-{}".format(camera_name, i)
+        #         cv2.imshow(window_name,image)
+        #     cv2.waitKey(0)
+        # else:
+        #     print ("nothing returned")
 
 if __name__ == '__main__':
     main()

@@ -67,11 +67,14 @@ def get_reolink_snapshot(url, username, password):
             + "&password=" + password
 
     try:
+        # debug
+        # print ("Camera Request HTTP Request: ", snap)
         reader = urllib.request.urlopen(snap, timeout=10)
         img_bytes = bytearray(reader.read())
         img_array = Image.open(io.BytesIO(img_bytes))
         img_numpy = numpy.array(img_array)
         img_bgr = cv2.cvtColor(img_numpy, cv2.COLOR_RGB2BGR)
+        # print (" get_reolink_snapshot: ** captured ** ", img_numpy.shape)
         return img_bgr
     except:
         print ("get_snap:", url)
@@ -147,21 +150,21 @@ def extract_regions(config, image):
 #   return numpy array [regions, 480, 640, 3]
 def get_camera_regions(config):
     start = time.perf_counter()
-    print (config)
-
+    
     name = config['name']
     url = get_reolink_url('http', config['ip'])
     username = config['username']
     password = config['password']
     rotation_angle = int(config['rotation_angle'])
-
+    # get the full image
+    # print ("get_camera_regions: url = ", url)
     full_image = get_reolink_snapshot(url, username, password)
-
-    # rotate the image
-    rot_full_image = imutils.rotate(full_image, rotation_angle) 
-
+    
+    # if the image exists..
     if full_image is not None:
-        print ("Camera: {} {} -- Frame Captured".format(name, start))
+        # rotate the image
+        rot_full_image = imutils.rotate(full_image, rotation_angle)
+        # print ("Camera: {} {} -- Frame Captured".format(name, start))
         np_images = extract_regions(config, rot_full_image)
     else:
         print ("Camera: {} {} -- snapshot timeout".format(name, start))
