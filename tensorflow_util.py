@@ -17,6 +17,8 @@ sys.path.append(slim)
 
 from google.protobuf import text_format
 from object_detection.protos import string_int_label_map_pb2
+from object_detection.utils.np_box_ops import iou
+
 #import tflite_runtime.interpreter as tflite
 
 import label_map_util
@@ -232,6 +234,19 @@ def get_tf_session(graph):
         image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
     return sess, tensor_dict, image_tensor
 
+# the model yields all detections over 0 probabiliity
+# keep only the ones over threshold
+# return numpy arrays
+def convert_output_dict_to_numpy(output_dict, threshold):
+    scores = output_dict['detection_scores']
+    good_detection_count = len([i for i in scores if i >= threshold])
+    # convert ONLY GOOD inferences to numpy
+    prob_array = np.array(output_dict['detection_scores'][:good_detection_count])
+    class_array = np.array(output_dict['detection_classes'][:good_detection_count])
+    bbox_array = np.array(output_dict['detection_boxes'][:good_detection_count])
+    return prob_array, class_array, bbox_array
+
+
 def send_image_to_tf_sess(image_np_expanded, sess, tensor_dict, image_tensor):
     output_dict = sess.run(tensor_dict,feed_dict={image_tensor: image_np_expanded})
     # all outputs are float32 numpy arrays, so convert types as appropriate
@@ -242,7 +257,10 @@ def send_image_to_tf_sess(image_np_expanded, sess, tensor_dict, image_tensor):
     output_dict['detection_scores'] = output_dict['detection_scores'][0]
     if 'detection_masks' in output_dict:
         output_dict['detection_masks'] = output_dict['detection_masks'][0]
-    return output_dict
+    
+    # Convert good detections to numpy
+    threshold = 0.7
+    return convert_output_dict_to_numpy(output_dict, threshold)
 
 # frozen graph
 # -- development only -- this should be discarded at some point
@@ -363,3 +381,94 @@ def detected_objects_to_annotation(detected_objects):
     '''
 
     return
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#    B O U N D I N G    B O X    U T I L I T I E S
+# - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+def calc_iou_with_previous(bbox_iou_threshold, region_id, bbox_stack_list, bbox_push_list, bbox_array):
+    '''
+    use IOU algorithm to compare current with previous
+    stack is a all bboxes from previous inferences (where something was detected)
+      size = DEDUP_DEPTH
+
+    SIMPLE - 1 object detected
+    consider:
+     b1 = np.array([[0.10, 0.20, 0.30, 0.40], [0.12, 0.22, 0.32, 0.42], [0.08, 0.18, 0.28, 0.38], [0.4, 0.6, 0.4, 0.6], [0.10, 0.2, 0.3, 0.4]])
+     b2 = np.array([[0.10, 0.20, 0.30, 0.40]])
+
+    # iou = [[1], [0.68], [0.68], [0.], [1]]   average = 0.67
+    match_rates = iou(b1,b2).reshape(-1,)
+    matches = np.argwhere(match_rates > 0.8).size
+
+    COMPLEX - 2 objects detected (history = 2 object, 1 object, 2 objects)
+    b1 = np.array([[0.1, 0.11, 0.2, 0.22], [0.3, 0.33, 0.4, 0.44], [0.1, 0.11, 0.2, 0.22], [0.1, 0.11, 0.2, 0.22], [0.3, 0.33, 0.4, 0.44]])
+    b2 = [[0.1, 0.11, 0.2, 0.22], [0.3, 0.33, 0.4, 0.44]]
+    match_rates = iou(b1,b2)
+
+    np.count_nonzero(match_rates[:,0] > 0.8)
+    np.count_nonzero(match_rates[:,1] > 0.8)
+
+    returns = IOU
+    '''
+
+    # get the bbox_stack
+    bbox_stack = bbox_stack_list[region_id]
+    bbox = bbox_array.reshape(-1,4)
+
+    # print ("\n\n ---- BEFORE ----")
+    # print ("Stack Before:", bbox_stack)
+    # print ("bbox:", bbox)
+    # print ("push list BEFORE:", bbox_push_list[region_id])
+
+    match_rates = iou(bbox_stack, bbox)
+    det_obj_count = bbox.shape[0]
+
+    # for the number of detected objects (1 object = 1 bb0x)
+    # how many matches?
+    match_counts = []
+    for i in range(det_obj_count):
+        object_match_count = np.count_nonzero(match_rates[:,i] > bbox_iou_threshold)
+        match_counts.append(object_match_count)
+
+    # push match count to the bbox push list (so you know how many to pop off)
+    # push list is nexted list - 1 list per region
+    bbox_push_list[region_id].append(det_obj_count)         # push the object count into the list
+
+    objects_to_remove = bbox_push_list[region_id][0]    # how many rows to remove from bbox_stack
+                                                            # zero based index so subtract 1
+    bbox_push_list[region_id].pop(0)                        # pop the first
+
+    # print ("----- AFTER -----")
+    # print ("-- bbox_stack ", bbox_stack.shape)
+    # print ("-- bbox       ", bbox.shape)
+    bbox_stack_list[region_id] = np.append(bbox_stack, bbox, 0)
+    # print ("-- box_stack_list-appended", region_id, bbox_stack_list[region_id].shape)
+    # print ("Stack BEFORE delete:", bbox_stack_list[region_id])
+
+    # print ("Slice:", objects_to_remove)
+    bbox_stack_list[region_id] = np.delete(bbox_stack_list[region_id], slice(0, objects_to_remove), 0)
+
+    # print ("Match Counts:", match_counts)
+    # print ("Stack After:", bbox_stack_list[region_id])
+    # print ("Push List:", bbox_push_list[region_id])
+
+    # print (" -- match counts:", match_counts)
+    return match_counts
+
+
+# identify new & old (repetitive) detections
+# this is a per camera-region function
+# - this is ONLY called if there were predictions
+def identify_new_detections(bbox_iou_threshold, camera_id, region_id, bbox_array, bbox_stack_list, bbox_push_list):
+    # check detected objects against the stack
+    new_objects = 0
+    dup_objects = 0
+
+    match_counts = calc_iou_with_previous(bbox_iou_threshold, region_id, bbox_stack_list, bbox_push_list, bbox_array)
+    for match_count in match_counts:
+        if match_count >= 3:
+            dup_objects = dup_objects + 1
+        else:
+            new_objects = new_objects + 1
+    return new_objects, dup_objects

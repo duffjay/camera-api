@@ -43,13 +43,45 @@ def DELETE_get_camera(ip, port, username, password, mfr):
     # return the VideoCapture object
     return camera
 
-def config_camara_data(camera_config):
-    camera_config_list = camera_config['camera']
-    camera_count = len(camera_config_list)
+# sets up memory structures for ALL  cameras
+def config_camara_data(config):
+    camera_config_list = config['camera']            # get list of camera configs
+    camera_count = len(camera_config_list)                  # count of cameras in this config
+    # a list of snapshot start times - used for measuring elapsed times
     camera_snapshot_times = []
     for i in range(camera_count):
         camera_snapshot_times.append(time.perf_counter())
-    return camera_config_list, camera_count, camera_snapshot_times
+
+    # generate memory structures for the identify_new_detections
+    # Each Camaera has:
+    #   bbox_stack_list - list of numpy arrays - 1 array per region -- 1 row per detected objects
+    #   bbox_push_list  - list of lists,       - 1 list per region  -- how many objects were pushed to the stack
+    # With multiple cameras..
+    #  this becomes:
+    #   bbox_stack_lists - one list per  camera
+    #   bbox_push_lists  - one list per camera
+    bbox_stack_lists = []
+    bbox_push_lists = []
+    for camera_id in range(camera_count):
+        camera_config = camera_config_list[camera_id]
+        print ("Camera_Config:", camera_config)
+        regions_config = camera_config['regions']
+        dedup_depth = camera_config['dedup_depth']
+        bbox_stack_list = []
+        bbox_push_list = []
+        for i, region in enumerate(regions_config):
+            bbox_stack_list.append(np.zeros((dedup_depth,4)))
+            # need a list of object count pushed to the stack
+            # we are pushing 1 bbox == object for dedup_DEPTH
+            # so that is dedup_depth x 1
+            region_push_list = []
+            for i in range(dedup_depth):
+                region_push_list.append(1)
+            bbox_push_list.append(region_push_list)
+        bbox_stack_lists.append(bbox_stack_list)
+        bbox_push_lists.append(bbox_push_list)
+
+    return camera_config_list, camera_count, camera_snapshot_times, bbox_stack_lists, bbox_push_lists
 
 def get_reolink_url(scheme, ip):
     '''
@@ -97,6 +129,7 @@ def append_crop_region(regions, crop_corner, crop_size):
 
     return regions
 
+# Deprecate - reolink2tflite only
 def config_camera_regions(camera_config):
     # 
     # - - Camera Regions - - - 
