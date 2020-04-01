@@ -43,7 +43,13 @@ def DELETE_get_camera(ip, port, username, password, mfr):
     # return the VideoCapture object
     return camera
 
-
+def config_camara_data(camera_config):
+    camera_config_list = camera_config['camera']
+    camera_count = len(camera_config_list)
+    camera_snapshot_times = []
+    for i in range(camera_count):
+        camera_snapshot_times.append(time.perf_counter())
+    return camera_config_list, camera_count, camera_snapshot_times
 
 def get_reolink_url(scheme, ip):
     '''

@@ -52,20 +52,18 @@ def main():
     print ("\n - - If you don't like these values, edit app_*.json and rerun this - - ")
     resize_dimensions = [(640,480), (1200,720), (1920,1440)]
     resize_input = int(input ("Resize Factor (width, height), \n{}\nEnter 0,1,2 > ".format(resize_dimensions)))
-
+    dim = resize_dimensions[resize_input]
     for i in range(2500):
-        start_time = time.time()  
-        print (start_time)
-
+        start_time = time.perf_counter()  
         camera_name, np_images = camera_util.get_camera_regions(camera_config)
-        print (" main -- camera: {}  secs: {}".format(
-            camera_name, (time.time() - start_time)))
+        print (" {:04d}  main -- camera: {}  secs: {:02.2f}".format(
+            i, camera_name, (time.perf_counter() - start_time)))
         
         if np_images is not None:
             for i, np_image in enumerate(np_images):
                 # img_bgr = cv2.cvtColor(np_image, cv2.COLOR_RGB2BGR)
                 region_name = 'region_{}'.format(i)
-                dim = (1920, 1440)
+                
                 resized_img = cv2.resize(np_image, dim, interpolation = cv2.INTER_AREA)
                 cv2.imshow(region_name, resized_img)
         else:

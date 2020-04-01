@@ -31,14 +31,16 @@ inferenceQueue = queue.Queue()
 run_state = True
 
 
-def image_producer(camera_id, camera_config, imageQueue):
+def image_producer(camera_id, camera_config, camera_snapshot_times, imageQueue):
     while True:
         camera_name, np_images = camera_util.get_camera_regions(camera_config)
+        snapshot_elapsed =  time.perf_counter() - camera_snapshot_times[camera_id]      # elapsed time between snapshots
+        camera_snapshot_times[camera_id] = time.perf_counter()                          # update the time == start time for the next snapshot
         if np_images is not None:
             image_time = time.time()
             imageQueue.put((camera_id, camera_name, image_time, np_images))
             with safeprint:
-                print ("  IMAGE-PRODUCER:>>{} np_images: {}".format(camera_name, np_images.shape))
+                print ("  IMAGE-PRODUCER:>>{} np_images: {}  {:02.2f} secs".format(camera_name, np_images.shape, snapshot_elapsed))
         else:
             with safeprint:
                 print ("  IMAGE-PRODUCER:--{} np_images: None".format(camera_name))
@@ -66,7 +68,7 @@ def image_consumer(consumer_id, imageQueue, sess, tensor_dict, image_tensor):
                 detection_classes = output_dict['detection_classes'][0:num_detections]
                 detection_boxes = output_dict['detection_boxes'][0:num_detections]
                 with safeprint:
-                    print ('  IMAGE-CONSUMER:<<Camera Name:', camera_name, (time.perf_counter() - start))
+                    print ('  IMAGE-CONSUMER:<<Camera Name: {}  {:02.2f}'.format(camera_name, (time.perf_counter() - start)))
                     for i in range(num_detections):
                         print ('      region {}  classes detected{}'.format(i, detection_classes))
         except queue.Empty:
@@ -101,8 +103,7 @@ def main():
     sess, tensor_dict, image_tensor, model_input_dim, label_map, label_dict = tensorflow_util.configure_tensorflow_model(model_config)
 
     # camera config
-    camera_config_list = config['camera']
-    camera_count = len(camera_config_list)
+    camera_config_list, camera_count, camera_snapshot_times = camera_util.config_camara_data(config)
     print ("Camera Count:", camera_count)
 
     global run_state
@@ -118,10 +119,10 @@ def main():
     #   I M A G E    P R O D U C E R S
     #    
     for camera_id, camera_config in enumerate(camera_config_list):
-        thread = threading.Thread(target=image_producer, args=(camera_id, camera_config, imageQueue))
+        thread = threading.Thread(target=image_producer, args=(camera_id, camera_config, camera_snapshot_times, imageQueue))
         thread.start()
 
-    time.sleep(60)
+    time.sleep(15)
     print ("main() sleep timed out")
     run_state = False
     print ("main() exit")
