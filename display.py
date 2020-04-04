@@ -28,7 +28,7 @@ BBOX_COLOR = list(
 def validate_bbox(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax):
     # print ("INPUT: {} {}".format(orig_image_height, orig_image_width))
     truncated = 0
-    print ("bbox validate - before: {} {} ({} {}), ({}, {})".format(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax), truncated)
+    # print ("bbox validate - img dim: {} {} ({} {}), ({}, {})".format(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax), truncated)
 
     if xmin > orig_image_width:
         xmin = orig_image_width
@@ -48,7 +48,7 @@ def validate_bbox(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax):
     # if truncated == 1:
     #     print ("   !!! bbox dimensions clipped !!!")
     
-    # print ("bbox validate -  after: {} {} ({} {}), ({}, {})".format(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax), truncated)
+    # print ("bbox validate -  img dim: {} {} ({} {}), ({}, {})".format(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax), truncated)
     return xmin, ymin, xmax, ymax
 
 def inference_to_image( 
@@ -77,8 +77,12 @@ def inference_to_image(
         
         if prob_array is not None:
             for i in range(prob_array.size):
-                bbox_array = bbox_array.reshape(-1,4)   # reshape from (1,x, 4) to (x, 4)
-                class_id = int(class_id_array[i]) + 1  
+                # holdover from tflite - shape of the numpy arrays was different
+                # bbox_array = bbox_array.reshape(-1,4)   # reshape from (1,x, 4) to (x, 4)
+                # class_id = int(class_id_array[i]) + 1   
+                # ALSO -- 
+                #   prob_array[i][0]
+                class_id = class_id_array[i]
 
                 # -- different between tflite & edgeTPU -- this is just tflite
                 # bbox dimensions - note this is not what you think!
@@ -94,13 +98,10 @@ def inference_to_image(
 
                 xmin, ymin, xmax, ymax = validate_bbox(orig_image_height, orig_image_width, xmin, ymin, xmax, ymax)
                 cv2.rectangle(orig_image, (xmin,ymin), (xmax, ymax), color=BBOX_COLOR[bbox_color_id],thickness=2)
-                # write the class name on the box
-                cv2.putText(orig_image, "{} - {:.2f}".format(label_dict[class_id], prob_array[i][0]), 
+                cv2.putText(orig_image, "{} - {:.2f}".format(label_dict[class_id], prob_array[i]), 
                     (xmin, ymin), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                 # append to detected objects (using this in annotations)
                 detected_objects.append((class_id, label_dict[class_id], prob_array[i], xmin, ymin, xmax, ymax))
                 objects_per_image_detected = objects_per_image_detected + 1
  
-
-        enlarged_image = cv2.resize(orig_image, (1280,960), interpolation = cv2.INTER_AREA)
-        return enlarged_image, (orig_image_height, orig_image_width), detected_objects
+        return orig_image, (orig_image_height, orig_image_width), detected_objects
