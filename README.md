@@ -30,7 +30,20 @@ cp research/object_detection/data/mscoco_label_map.pbtxt ~/projects/camera-api/m
 you need a tflite model - easiest place to get that is from s3  
 you should have created it using the ssd-dag/UnderstandingTensorRT_ConvertGraph notebook  
 
+## TensorFlow (Frozen Graph) vs TF Lite vs EdgeTPU
+Which model type to use?  
+### TF Lite
+I started with tflite because it's simple.   It does not use a GPU.   TFLite is a stepping stone to EdgeTPU (Coral).    Performance was about 0.1 sec per inference.   Not bad but it adds up when you have 4+ image regions.    the reolink2tflite.py program is highly deprecated and will no longer work - but, it's still there if you want to convert to tflite.   This will show you how to use this model type.
+
+### EdgeTPU & Coral
+This is a sensible way to go - but I did not.   You convert the *.tflite model to an EdgeTPU model and then it will use the Coral.   The Coral is fast - as fast as the GPU or faster.   But, I did not use this.   The interface to this model is different.   Probably can figure this out by looking at other projects in the github account.  
+
+### TensorFlow - Frozen Graph
+This was the preferred solution because I have GPUs.   Requires TF 1.15 
+
 ## Generating Images
+
+python security.py app_reolink12_tensorflow.json  
 
 ## Labeling Images
 
