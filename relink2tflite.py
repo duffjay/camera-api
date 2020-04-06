@@ -48,8 +48,9 @@ global camera_name            # one camera per running program, this is the came
 #  - input a camera number 
 #  - config file
 
-
-def calc_iou_with_previous(region_id, bbox_stack_list, bbox_push_list, bbox_array):
+# DEPRECATED
+# use tensorflow_util.calc_iou_with_previous
+def DEP_calc_iou_with_previous(region_id, bbox_stack_list, bbox_push_list, bbox_array):
     '''
     use IOU algorithm to compare current with previous
     stack is a all bboxes from previous inferences (where something was detected)

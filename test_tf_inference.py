@@ -49,6 +49,7 @@ for i,image_path in enumerate(image_list):
     image_np_expanded = np.expand_dims(image_np, axis=0)
     # Actual detection.
     start = time.perf_counter()
+    print ("Start:", start)
     # -- run model
     output_dict = tensorflow_util.send_image_to_tf_sess(image_np_expanded, sess, tensor_dict, image_tensor)
     print ("Output dict: \n", output_dict)
