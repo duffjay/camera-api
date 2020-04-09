@@ -39,7 +39,8 @@ def get_image_file_list(path):
 
 image_dir = os.path.join("/home/jay/Downloads", "faces")
 image_list = get_image_file_list(image_dir)
-session = rekognition_util.get_sessiion(aws_profile)
+
+session = rekognition_util.get_session(aws_profile)
 
 for i,image_filename in enumerate(image_list):
     start = time.perf_counter()

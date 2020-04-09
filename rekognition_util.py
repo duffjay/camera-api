@@ -5,8 +5,8 @@ from botocore.exceptions import ClientError
 # https://docs.aws.amazon.com/rekognition/latest/dg/rekognition-dg.pdf
 
 # aws session
-def get_sessiion(profile):
-    return boto3.session.Session(profile_name = profile)
+def get_session(aws_profile):
+    return boto3.session.Session(profile_name = aws_profile)
 
 def create_collection(session, collection_id):
 
@@ -20,7 +20,7 @@ def create_collection(session, collection_id):
     print('Done...')
     return response['CollectionArn']
 
-def add_faces_to_collection(session, bucket, photo_list, collection_id):
+def add_faces_to_collection(session, aws_profile, bucket, photo_list, collection_id):
     client = session.client("rekognition")
 
     # for photo in photo_list:
@@ -61,6 +61,7 @@ def add_faces_to_collection(session, bucket, photo_list, collection_id):
         except ClientError as e:
             if e.response['Error']['Code'] == 'ExpiredTokenException':
                 print(" - - - UPDATE SESSION - - - ")
+                session = get_session(aws_profile)
 
             elif e.response['Error']['Code'] == 'ResourceNotFoundException':
                 print(" - - - creating collection - - - ")
@@ -69,9 +70,11 @@ def add_faces_to_collection(session, bucket, photo_list, collection_id):
             else:
                 print ("unhandled AWS ClientError:", e)
                 break
-        else:
-            print("Unexpected error")
-            break
+        except Exception as e:
+            print ("General Exception:", e)
+        # else:
+        #     print("Unexpected error")
+        #     break
         retry_count += 1
         if retry_count > 3:
             print ("!!! Retry Count exceeded !!!")
@@ -80,37 +83,64 @@ def add_faces_to_collection(session, bucket, photo_list, collection_id):
     
     return face_count
 
-def search_faces_by_image(session, profile, collection_id, np_image):
+def search_faces_by_image(session, aws_profile, collection_id, np_image):
     region = "us-east-1"
 
-    # image_bytes = np_image.tobytes()
     retval, image_bytes = cv2.imencode('.jpg', np_image)
-    # image_bytes = open ("/home/jay/Downloads/faces/1586378250-0-3.jpg", "rb")
-    print ("image_bytes type:", type(image_bytes))
-    image = {"Bytes" : bytearray(image_bytes)}
+    image = {"Bytes" : bytearray(image_bytes)}      # without this, the type = ndarray and won't pass validation test on aws
 
     retry_count = 0
-    # while True:
-    #     try:
-    rekognition = session.client("rekognition", region)
-    response = rekognition.search_faces_by_image(
-        CollectionId=collection_id,
-        FaceMatchThreshold=70.0,
-        Image=image,
-        MaxFaces=1,
-        QualityFilter='AUTO'
-    )
-    #     break
-    # except ClientError as e:
-    #     print ("unhandled AWS ClientError:", e)
-    #     break
-    # else:
-    #     print("Unexpected error")
-    #     break
-    
-    # retry_count += 1
-    # if retry_count > 3:
-    #     print ("!!! Retry Count exceeded !!!")
-    #     break
+    face_id = 0
+    similarity = 0.0
+    while True:
+        try:
+            rekognition = session.client("rekognition", region)
+            response = rekognition.search_faces_by_image(
+                CollectionId=collection_id,
+                FaceMatchThreshold=70.0,
+                Image=image,
+                MaxFaces=1,
+                QualityFilter='AUTO'
+            )
+            # process the JSON response
+            # searched = response['SearchedFaceBoundingBox']
+            # print ("searched: ", searched)
+            face_matches = response['FaceMatches']
+            for match in face_matches:
+                similarity = float(match['Similarity'])
+                face = match['Face']
+                face_id = face['FaceId']
+                print ("Matched Face: {}  {:.2f}".format(face_id, similarity))
+            break
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ExpiredTokenException':
+                print(" - - - UPDATE SESSION - - - ")
+                session = get_session(aws_profile)
+                # no break - you can retry
 
-    return response
+            elif e.response['Error']['Code'] == 'InvalidParameterException':
+                print(" - - - no faces? - - - ")
+                break       # no reason to try again
+
+            else:
+                print ("unhandled AWS ClientError:", e)
+                break       # no reason to try again
+        
+        except Exception as e:
+            print ("General Exception:", e)
+            break
+
+        # else:
+        #     print("Unexpected error")
+        #     break       # no reason to try again
+        
+        retry_count += 1
+        if retry_count > 3:
+            print ("!!! Retry Count exceeded !!!")
+            break
+
+    return (face_id, similarity)
+
+
+
+     # {'SearchedFaceBoundingBox': {'Width': 0.08219089359045029, 'Height': 0.1460799276828766, 'Left': 0.12093808501958847, 'Top': 0.32774946093559265}, 'SearchedFaceConfidence': 99.99976348876953, 'FaceMatches': [{'Similarity': 96.39073181152344, 'Face': {'FaceId': 'de74929a-deb4-492e-b39b-e5708bc481c8', 'BoundingBox': {'Width': 0.0609435997903347, 'Height': 0.14026999473571777, 'Left': 0.19517099857330322, 'Top': 0.1603659987449646}, 'ImageId': '6ea067a3-66ec-333f-ad05-531aeec3acac', 'ExternalImageId': '20160918_135541.jpg', 'Confidence': 100.0}}], 'FaceModelVersion': '4.0', 'ResponseMetadata': {'RequestId': 'd5369d25-301b-4d9f-b8a9-339c148cb13f', 'HTTPStatusCode': 200, 'HTTPHeaders': {'content-type': 'application/x-amz-json-1.1', 'date': 'Thu, 09 Apr 2020 17:31:53 GMT', 'x-amzn-requestid': 'd5369d25-301b-4d9f-b8a9-339c148cb13f', 'content-length': '544', 'connection': 'keep-alive'}, 'RetryAttempts': 0}}

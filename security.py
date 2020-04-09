@@ -5,6 +5,7 @@ import cv2
 import threading
 import queue
 import numpy as np
+import traceback
 
 # add the tensorflow models project to the Python path
 # github tensorflow/models
@@ -24,15 +25,45 @@ import tensorflow_util
 import camera_util
 import display
 import annotation
+import rekognition_util
 
 # globals
 
 safeprint = threading.Lock()
 imageQueue = queue.Queue()
+faceQueue = queue.Queue()
+
 # inferenceQueue = queue.Queue()
 run_state = True
 
+#
+#  convert the facial detection list of lists 
+#  to: list of tuple-2
+def convert_facial_lists(regions_lists):
+    regions_tuples = []
+    for regions_list in regions_lists:
+        regions_tuples.append((regions_list[0], regions_list[1]))
+    return regions_tuples
 
+# return  True -- if the camera-region is in the facial detection list
+#                 -- i.e.  regions to check faces
+#              -- AND - there was a person detected
+def check_faces(camera_id, region_id, region_list, class_array):
+    # 1st - is this region in the regions to check list?
+    match = False
+    submit_to_queue = False
+    for region_tuple in region_list:
+        if region_tuple == (camera_id, region_id):
+            match = True
+            break
+    # 2nd - was there a person detected
+    if match == True:
+        for clss in class_array:
+            if clss == 1:
+                submit_to_queue = True
+                return submit_to_queue
+    # return == True if it it in the regions to check & there was a person detected
+    return submit_to_queue
 
 def image_producer(camera_id, camera_config, camera_snapshot_times, imageQueue):
     while True:
@@ -41,7 +72,7 @@ def image_producer(camera_id, camera_config, camera_snapshot_times, imageQueue):
         camera_snapshot_times[camera_id] = time.perf_counter()                          # update the time == start time for the next snapshot
         # pushes to the stack if there was a frame captured
         if np_images is not None:
-            image_time = int(time.time())
+            image_time = int(time.time() * 10)  # multiply time x 10 to pick up 10ths
             imageQueue.put((camera_id, camera_name, image_time, np_images))
             with safeprint:
                 print ("  IMAGE-PRODUCER:>>{} np_images: {}  {:02.2f} secs".format(camera_name, np_images.shape, snapshot_elapsed))
@@ -55,8 +86,9 @@ def image_producer(camera_id, camera_config, camera_snapshot_times, imageQueue):
     return
 
 # Pull images off the imageQueue
-# - produce inferences
-def image_consumer(consumer_id, imageQueue, sess, tensor_dict, image_tensor, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict):
+# - produce faceQueue (check the faces in the images)
+def image_consumer(consumer_id, imageQueue, sess, tensor_dict, image_tensor, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict,
+        facial_detection_regions, faceQueue):
     save_inference = True
     while True:
         try:
@@ -104,13 +136,19 @@ def image_consumer(consumer_id, imageQueue, sess, tensor_dict, image_tensor, bbo
                 else:
                     cv2.imshow(window_name, np_image)
 
+                # Facial Detection
+                submit_face_queue = check_faces(camera_id, region_id, facial_detection_regions, class_array)  # is this region in the regions to check?
+                if submit_face_queue == True:
+                    print ("     - - - - - - - - - - - - - - - - - - - - - Image pushed to faceQueue:  {}  {}".format(camera_id, region_id))
+                    faceQueue.put((camera_id, region_id, image_time, np_image))
+
+
                 # S A V E
                 # - if there were detections
-                #     - and they was at least 1 new one
-                # save the annotation also
+                #     - and they was at lea# cascade classifier
                 if num_detections > 0:
                     if save_inference and new_objects > 0:
-                        base_name = '{}-{}-{}'.format(image_time, camera_id, region_id)
+                        base_name = '{}-{}-{}'.format(image_time, camera_id, region_id)   
                         global image_path
                         image_name = os.path.join(image_path,  base_name + '.jpg')
                         global annotation_path
@@ -140,6 +178,69 @@ def image_consumer(consumer_id, imageQueue, sess, tensor_dict, image_tensor, bbo
     time.sleep(0.1)
     return
 
+
+# Pull images off the faceQueue
+# - check with OpenCV if there is a face
+# - submit to AWS Rekognition
+# If known face detected, then write status
+def face_consumer(consumer_id, faceQueue, aws_session, aws_profile):
+    # cascade classifier
+    face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    while True:
+        try:
+            # Consumer tasks
+            # - once/frame
+            #    - ALL regions of the frame
+            data = faceQueue.get(block=False)
+            camera_id, region_id, image_time, np_image = data
+            start = time.perf_counter()  
+            face_count = 0
+            print ("------------------------------------------------------- pulled", camera_id, region_id, image_time, np_image.shape)
+            # check if there is a face w/ OpenCV
+            match_id = 0
+            similarity = 0.0
+            try:
+                # cv2.imshow('face candidate', np_image)
+                # # stop all on a 'q' in a display window
+                # if cv2.waitKey(1) & 0xFF == ord('q'):
+                #     global run_state
+                #     run_state = False
+                #     break
+                # process the image
+                image_name = "faces/{}-{}-{}.jpg".format(image_time, camera_id, region_id)
+                cv2.imwrite(image_name, np_image)
+                image_gray = cv2.cvtColor(np_image, cv2.COLOR_BGR2GRAY)
+                # print (image_gray)
+                faces = face_cascade.detectMultiScale(image_gray, 1.1, 4)
+                face_count = len(faces)
+                # send to Rekognition
+                if face_count > 0:
+                    match_id, similarity = rekognition_util.search_faces_by_image(aws_session, aws_profile, "family", np_image)
+            except Exception as e:
+                print ("--------------------------------------------------- opencv ERROR:", e)
+                
+            elapsed = time.perf_counter() - start
+            with safeprint:
+                print ('   FACE-CONSUMER:--Camera ID: {} region ID: {} image_timestamp {}  inference time:{:02.2f} sec  faces: {} {} {}'.format(camera_id, region_id, image_time, elapsed, face_count, match_id, similarity))
+
+            
+
+
+        except queue.Empty:
+            with safeprint:
+                print ('   FACE-CONSUMER:  nothing on queue')
+            pass
+        
+        except Exception as e:
+            with safeprint:
+                print ('   FACE-CONSUMER:  ERROR {}'.format(e))
+                traceback.print_exc()
+
+
+        time.sleep(0.5)
+        
+    return 
+
 def main():
     # args
     config_filename = sys.argv[1]   # 0 based
@@ -153,10 +254,16 @@ def main():
     annotation_dir = config["annotation_dir"]
     snapshot_dir = config["snapshot_dir"]
 
+    facial_detection_regions = convert_facial_lists(config["facial_detection_regions"]) # list of lists converted to list of tuple-2  (camera_id, regions_id)
+
     global image_path
     image_path = os.path.abspath(os.path.join(cwd, snapshot_dir))
     global annotation_path
     annotation_path = os.path.abspath(os.path.join(cwd, annotation_dir))
+
+    # AWS
+    aws_profile = config["aws_profile"]
+    aws_session = rekognition_util.get_session(aws_profile)
 
     # configure the model
     model_config = config["model"]
@@ -170,12 +277,14 @@ def main():
     global run_state
     run_state = True
     #   I M A G E    C O N S U M E R S
-    #   == inference producers
+    #   == face producers
     # 
     consumer_count = 1
     for i in range(1):
         thread = threading.Thread(target=image_consumer, 
-            args=(i, imageQueue, sess, tensor_dict, image_tensor, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict))
+            args=(i, imageQueue, sess, tensor_dict, image_tensor, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict, 
+            facial_detection_regions, faceQueue
+            ))
         thread.daemon = True
         thread.start()
 
@@ -185,6 +294,17 @@ def main():
         thread = threading.Thread(target=image_producer, 
             args=(camera_id, camera_config, camera_snapshot_times, imageQueue))
         thread.start()
+
+    #   F A C E    C O N S U M E R S
+    #   == run Rekognition
+    # 
+    consumer_count = 1
+    for i in range(1):
+        thread = threading.Thread(target=face_consumer, 
+            args=(i, faceQueue, aws_session, aws_profile))
+        thread.daemon = True
+        thread.start()
+
 
     # time.sleep(240)
     # print ("main() sleep timed out")
