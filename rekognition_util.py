@@ -2,11 +2,12 @@ import cv2
 import boto3
 from botocore.exceptions import ClientError
 
+import aws_util
+import settings
+
 # https://docs.aws.amazon.com/rekognition/latest/dg/rekognition-dg.pdf
 
-# aws session
-def get_session(aws_profile):
-    return boto3.session.Session(profile_name = aws_profile)
+
 
 def create_collection(session, collection_id):
 
@@ -20,8 +21,8 @@ def create_collection(session, collection_id):
     print('Done...')
     return response['CollectionArn']
 
-def add_faces_to_collection(session, aws_profile, bucket, photo_list, collection_id):
-    client = session.client("rekognition")
+def add_faces_to_collection(bucket, photo_list, collection_id):
+    client = aws_settings.session.client("rekognition")
 
     # for photo in photo_list:
     #     image = {'S3Object':{'Bucket':bucket, 'Name:':photo}}
@@ -61,7 +62,7 @@ def add_faces_to_collection(session, aws_profile, bucket, photo_list, collection
         except ClientError as e:
             if e.response['Error']['Code'] == 'ExpiredTokenException':
                 print(" - - - UPDATE SESSION - - - ")
-                session = get_session(aws_profile)
+                settings.aws_session = aws_util.get_session()
 
             elif e.response['Error']['Code'] == 'ResourceNotFoundException':
                 print(" - - - creating collection - - - ")
@@ -83,7 +84,7 @@ def add_faces_to_collection(session, aws_profile, bucket, photo_list, collection
     
     return face_count
 
-def search_faces_by_image(session, aws_profile, collection_id, np_image):
+def search_faces_by_image(collection_id, np_image):
     region = "us-east-1"
 
     retval, image_bytes = cv2.imencode('.jpg', np_image)
@@ -94,7 +95,7 @@ def search_faces_by_image(session, aws_profile, collection_id, np_image):
     similarity = 0.0
     while True:
         try:
-            rekognition = session.client("rekognition", region)
+            rekognition = settings.aws_session.client("rekognition", region)
             response = rekognition.search_faces_by_image(
                 CollectionId=collection_id,
                 FaceMatchThreshold=70.0,
@@ -110,12 +111,12 @@ def search_faces_by_image(session, aws_profile, collection_id, np_image):
                 similarity = float(match['Similarity'])
                 face = match['Face']
                 face_id = face['FaceId']
-                print ("Matched Face: {}  {:.2f}".format(face_id, similarity))
+                # print ("Matched Face: {}  {:.2f}".format(face_id, similarity))
             break
         except ClientError as e:
             if e.response['Error']['Code'] == 'ExpiredTokenException':
                 print(" - - - UPDATE SESSION - - - ")
-                session = get_session(aws_profile)
+                settings.aws_session = aws_util.get_session()
                 # no break - you can retry
 
             elif e.response['Error']['Code'] == 'InvalidParameterException':
