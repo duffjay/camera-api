@@ -48,3 +48,9 @@ def init(config_filename):
     global aws_session, aws_profile
     aws_profile = config["aws_profile"]
     aws_session = aws_util.get_session()
+
+    # faces
+    global last_recognized_face_id
+    global last_recognized_face_time 
+    last_recognized_face_id = 0
+    last_recognized_face_time = 0.0

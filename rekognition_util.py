@@ -22,7 +22,7 @@ def create_collection(session, collection_id):
     return response['CollectionArn']
 
 def add_faces_to_collection(bucket, photo_list, collection_id):
-    client = aws_settings.session.client("rekognition")
+    client = settings.aws_session.client("rekognition")
 
     # for photo in photo_list:
     #     image = {'S3Object':{'Bucket':bucket, 'Name:':photo}}
