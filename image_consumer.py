@@ -72,6 +72,7 @@ def image_consumer(consumer_id,
             #    - ALL regions of the frame
             data = settings.imageQueue.get(block=False)
             camera_id, camera_name, image_time, np_images = data
+            pushed_to_face_queue = False
             start = time.perf_counter()
             
             # loop through the regions in the frame
@@ -91,12 +92,6 @@ def image_consumer(consumer_id,
                     new_objects, dup_objects = tensorflow_util.identify_new_detections(
                         iou_threshold, camera_id, region_id, bbox_array, bbox_stack_lists[camera_id], bbox_push_lists[camera_id])
                 
-                with settings.safe_print:
-                    print ('  IMAGE-CONSUMER:<<Camera Name: {} region: {} image_timestamp {}  inference time:{:02.2f} sec  detections: {}'.format(
-                        camera_name, region_id, image_time, (time.perf_counter() - start), num_detections))
-                    for detection_id in range(num_detections):
-                        print ('      detection {}  classes detected{} new: {}  repeated: {}'.format(detection_id, class_array, new_objects, dup_objects))
-                        print ('           Scores: {}   Classes: {}    BBoxes: {}'.format(prob_array, class_array, bbox_array))
                 # display
                 window_name = '{}-{}'.format(camera_name, region_id)
                 if num_detections > 0:
@@ -112,14 +107,16 @@ def image_consumer(consumer_id,
                     cv2.imshow(window_name, np_image)
 
                 # Facial Detection
-                submit_face_queue = check_faces(camera_id, region_id, facial_detection_regions, class_array)  # is this region in the regions to check?
-                if submit_face_queue == True:
-                    # print ("     - - - - - - - - - - - - - - - - - - - - - Image pushed to faceQueue:  {}  {}".format(camera_id, region_id))
-                    settings.faceQueue.put((camera_id, region_id, image_time, np_image))
+                if settings.facial_detection_enabled == True:
+                    submit_face_queue = check_faces(camera_id, region_id, facial_detection_regions, class_array)  # is this region in the regions to check?
+                    if submit_face_queue == True:
+                        settings.faceQueue.put((camera_id, region_id, image_time, np_image))
+                        pushed_to_face_queue = True
 
                 # S A V E
                 # - if there were detections
                 #     - and they was at lea# cascade classifier
+                saved = False
                 if num_detections > 0:
                     if settings.save_inference and new_objects > 0:
                         base_name = '{}-{}-{}'.format(image_time, camera_id, region_id)   
@@ -127,12 +124,26 @@ def image_consumer(consumer_id,
                         annotation_name = os.path.join(settings.annotation_path,  base_name + '.xml')
                         # print ("saving:", image_name, image.shape, annotation_name)
                         # original image - h: 480  w: 640
-                        print ("  Saved: stale objects: {}  new objects: {}   image_name: {}".format( dup_objects, new_objects, image_name))
+                        saved = True
                         cv2.imwrite(image_name, orig_image)
                         # this function generates & saves the XML annotation
                         annotation_xml = annotation.inference_to_xml(settings.image_path, image_name,orig_image_dim, detected_objects, settings.annotation_path )
-                    elif settings.save_inference and new_objects == 0:
-                        print ("  No new objects detected --- not saved")
+                
+                with settings.safe_print:
+                    print ('  IMAGE-CONSUMER:<< image queue size: {}, camera name: {} region: {} image_timestamp {}  inference time:{:02.2f} sec  detections: {}'.format(
+                        settings.imageQueue.qsize(), camera_name, region_id, image_time, (time.perf_counter() - start), num_detections))
+                    for detection_id in range(num_detections):
+                        print ('      detection {}  classes detected{} new: {}  repeated: {}'.format(detection_id, class_array, new_objects, dup_objects))
+                        print ('           Scores: {}   Classes: {}'.format(prob_array, class_array))
+                        for bbox in bbox_array:
+                            print ('           bbox:', bbox)
+                    if pushed_to_face_queue == True:
+                        print ('      pushed to faceQueue')
+                    if saved == True:
+                        print ("      Saved: stale objects: {}  new objects: {}   image_name: {}".format( dup_objects, new_objects, image_name))
+                    else:
+                        print ("      No new objects detected --- not saved")
+
 
             # stop all on a 'q' in a display window
             if cv2.waitKey(1) & 0xFF == ord('q'):

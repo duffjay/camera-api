@@ -51,11 +51,12 @@ def main():
     # - includes getting the data structures to track detections
     camera_config_list, camera_count, camera_snapshot_times, bbox_stack_lists, bbox_push_lists = camera_util.config_camara_data(settings.config)
     print ("Camera Count:", camera_count)
+    print ("Facial Detection Enabled", settings.facial_detection_enabled)
 
     #   I M A G E    C O N S U M E R S
     #   == face producers
     # 
-    consumer_count = 1
+    consumer_count = 5
     for i in range(consumer_count):
         thread = threading.Thread(target=image_consumer.image_consumer, 
             args=(i, 
@@ -73,12 +74,13 @@ def main():
     #   F A C E    C O N S U M E R S
     #   == run Rekognition
     # 
-    consumer_count = 1
-    for i in range(consumer_count):
-        thread = threading.Thread(target=face_consumer.face_consumer, 
-            args=(i,))
-        thread.daemon = True
-        thread.start()
+    if settings.facial_detection_enabled == True:
+        consumer_count = 1
+        for i in range(consumer_count):
+            thread = threading.Thread(target=face_consumer.face_consumer, 
+                args=(i,))
+            thread.daemon = True
+            thread.start()
 
 
     # time.sleep(240)

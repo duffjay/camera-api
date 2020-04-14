@@ -50,7 +50,11 @@ def init(config_filename):
     aws_session = aws_util.get_session()
 
     # faces
+    global facial_detection_enabled
     global last_recognized_face_id
-    global last_recognized_face_time 
+    global last_recognized_face_time
+
+    if config["facial_detection_enabled"] == "True":
+        facial_detection_enabled = True 
     last_recognized_face_id = 0
     last_recognized_face_time = 0.0

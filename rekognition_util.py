@@ -9,9 +9,9 @@ import settings
 
 
 
-def create_collection(session, collection_id):
+def create_collection(collection_id):
 
-    client=session.client('rekognition')
+    client=settings.aws_session.client('rekognition')
 
     #Create a collection
     print('Creating collection:' + collection_id)
@@ -24,62 +24,66 @@ def create_collection(session, collection_id):
 def add_faces_to_collection(bucket, photo_list, collection_id):
     client = settings.aws_session.client("rekognition")
 
+
     # for photo in photo_list:
     #     image = {'S3Object':{'Bucket':bucket, 'Name:':photo}}
     #             {'S3Object':{'Bucket':bucket,'Name':photo}}
     #     print ("photo to add:", image)
-    image = {"S3Object": {"Bucket" : 'jmduff.rekognition', "Name" : 'family/20160918_135541.jpg'}}
-    photo_path = 'family/20160918_135541.jpg'
-    photo = '20160918_135541.jpg'
-    print ("Image JSON:", image)
-    face_count = 0
+    for photo_path in photo_list:
+        image = {"S3Object": {"Bucket" : 'jmduff.rekognition', "Name" : photo_path}}
+        photo = photo_path[(photo_path.rfind('/') + 1):]
+        print ("\nImage JSON:", image)
+        print (photo)
+        face_count = 0
 
-    # while - to handle the errors w/ retry
-    retry_count = 0
-    while True:
-        try:
-            response = client.index_faces(CollectionId = collection_id,
-                Image=image,
-                ExternalImageId=photo,
-                MaxFaces=3,
-                QualityFilter="AUTO",
-                DetectionAttributes=['ALL']
-                )
-            print ("Add Faces To Collection - Reults:", photo)
-            print ("  Faces indexed:")
-            for faceRecord in response['FaceRecords']:
-                print ('    Face ID: ' + faceRecord['Face']['FaceId'])
-                print ('    Location: {}'.format(faceRecord['Face']['BoundingBox']))
+        # while - to handle the errors w/ retry
+        retry_count = 0
+        while True:
+            try:
+                response = client.index_faces(CollectionId = collection_id,
+                    Image=image,
+                    ExternalImageId=photo,
+                    MaxFaces=24,
+                    QualityFilter="AUTO",
+                    DetectionAttributes=['ALL']
+                    )
+                print ("Add Faces To Collection - Reults:", photo)
+                print ("  Faces indexed:")
+                for faceRecord in response['FaceRecords']:
+                    print ('    Face ID: ' + faceRecord['Face']['FaceId'])
+                    print ('    Location: {}'.format(faceRecord['Face']['BoundingBox']))
 
-            print ("  Faces NOT indexed:")
-            for unindexFace in response['UnindexedFaces']:
-                print ('   Location {}'.fromat(unindexedFace['Face']['FaceId']))
-                print ('   Reaosons:')
-                for reason in unindexedFace['Reasons']:
-                    print ('     ' + reason)
-            face_count = len(response['FaceRecords'])
-            break    # finished happily
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'ExpiredTokenException':
-                print(" - - - UPDATE SESSION - - - ")
-                settings.aws_session = aws_util.get_session()
+                print ("  Faces NOT indexed:")
+                for unindexedFace in response['UnindexedFaces']:
+                    # print (' unindexedFace', unindexedFace)
+                    # print ('   Location {}'.format(unindexedFace['Face']['FaceId']))
+                    print ('   Reaosons:')
+                    for reason in unindexedFace['Reasons']:
+                        print ('     ' + reason)
+                face_count = len(response['FaceRecords'])
+                print ("Added {} face count: {}".format(photo_path, face_count))
+                break    # finished happily
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'ExpiredTokenException':
+                    print(" - - - UPDATE SESSION - - - ")
+                    settings.aws_session = aws_util.get_session()
 
-            elif e.response['Error']['Code'] == 'ResourceNotFoundException':
-                print(" - - - creating collection - - - ")
-                create_collection(session, collection_id)
+                elif e.response['Error']['Code'] == 'ResourceNotFoundException':
+                    print(" - - - creating collection - - - ")
+                    create_collection(collection_id)
 
+                else:
+                    print ("unhandled AWS ClientError:", e)
+                    break
+            except Exception as e:
+                print ("General Exception:", e)
             else:
-                print ("unhandled AWS ClientError:", e)
+                print("Unexpected error")
                 break
-        except Exception as e:
-            print ("General Exception:", e)
-        # else:
-        #     print("Unexpected error")
-        #     break
-        retry_count += 1
-        if retry_count > 3:
-            print ("!!! Retry Count exceeded !!!")
-            break
+            retry_count += 1
+            if retry_count > 3:
+                print ("!!! Retry Count exceeded !!!")
+                break
 
     
     return face_count

@@ -10,7 +10,11 @@ import settings
 aws_profile = 'jmduff'
 collection_id = 'family'
 bucket='jmduff.rekognition'
-folder='family/'
+
+# - - pick a folder - - 
+#folder='family/'
+folder='mailman_1/'
+
 
 def update_session(aws_profile):
     return boto3.session.Session(profile_name = aws_profile)
