@@ -62,6 +62,7 @@ def check_faces(camera_id, region_id, region_list, class_array):
 def image_consumer(consumer_id, 
         sess, tensor_dict, image_tensor, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict):
 
+    print ("IMAGE-CONSUMER started #{}".format(consumer_id))
         # configuration
     facial_detection_regions = convert_facial_lists(settings.config["facial_detection_regions"]) # list of lists converted to list of tuple-2  (camera_id, regions_id)
 
@@ -74,7 +75,6 @@ def image_consumer(consumer_id,
             camera_id, camera_name, image_time, np_images = data
             pushed_to_face_queue = False
             start = time.perf_counter()
-            
             # loop through the regions in the frame
             for region_id, np_image in enumerate(np_images):
                 orig_image = np_image.copy()     # np_image will become inference image - it's NOT immutable
@@ -102,9 +102,15 @@ def image_consumer(consumer_id,
                         image,
                         bbox_array, class_array, prob_array, 
                         model_input_dim, label_dict, probability_threshold)
-                    cv2.imshow(window_name, inference_image)
-                else:
-                    cv2.imshow(window_name, np_image)
+                    # cv2.imshow(window_name, inference_image)
+
+                # else:
+                    # cv2.imshow(window_name, np_image)
+                # stop all on a 'q' in a display window
+                # if cv2.waitKey(1) & 0xFF == ord('q'):
+                #     settings.run_state = False
+                #     print (" *********** SHUTDOWN REQUESTED ***********")
+                #     break
 
                 # Facial Detection
                 if settings.facial_detection_enabled == True:
@@ -145,11 +151,7 @@ def image_consumer(consumer_id,
                         print ("      No new objects detected --- not saved")
 
 
-            # stop all on a 'q' in a display window
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                settings.run_state = False
-                print (" *********** SHUTDOWN REQUESTED ***********")
-                break
+
 
         except queue.Empty:
             pass
@@ -162,5 +164,5 @@ def image_consumer(consumer_id,
     if settings.run_state == False:
         print (" ******* image consummer {} shutdown *******".format(consumer_id))
         
-    time.sleep(0.1)
+    # DON'T SLEEP -- because this is a single thread
     return

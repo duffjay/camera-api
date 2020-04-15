@@ -41,8 +41,9 @@ def init(config_filename):
     global run_state
     run_state = True
 
-    global safe_print
+    global safe_print, safe_imshow
     safe_print = threading.Lock()
+    safe_imshow = threading.Lock()
 
     # AWS
     global aws_session, aws_profile
