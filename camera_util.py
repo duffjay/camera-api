@@ -1,13 +1,16 @@
+import numpy as np
+import cv2
+import imutils
+
 import io
 import random
 import string
 import urllib
-import numpy as np
+
 import time
 
 from PIL import Image
-import cv2
-import imutils
+
 
 # DEPRECATED
 def get_camera_config(config, camera_num):
@@ -109,16 +112,17 @@ def get_reolink_snapshot(url, username, password):
 
     try:
         # debug
-        # print ("Camera Request HTTP Request: ", snap)
+        print ("Camera Request HTTP Request: ", snap)
         reader = urllib.request.urlopen(snap, timeout=10)
         img_bytes = bytearray(reader.read())
         img_array = Image.open(io.BytesIO(img_bytes))
-        img_numpy = numpy.array(img_array)
+        img_numpy = np.array(img_array)
         img_bgr = cv2.cvtColor(img_numpy, cv2.COLOR_RGB2BGR)
         # print (" get_reolink_snapshot: ** captured ** ", img_numpy.shape)
         return img_bgr
-    except:
-        print ("get_snap:", url)
+    except Exception as e:
+        print ("get_snap failed:", snap)
+        print ("ERROR:",e)
         return None
 
 

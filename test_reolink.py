@@ -53,7 +53,7 @@ def main():
     resize_dimensions = [(640,480), (1200,720), (1920,1440)]
     resize_input = int(input ("Resize Factor (width, height), \n{}\nEnter 0,1,2 > ".format(resize_dimensions)))
     dim = resize_dimensions[resize_input]
-    for i in range(2500):
+    for i in range(250):
         start_time = time.perf_counter()  
         camera_name, np_images = camera_util.get_camera_regions(camera_config)
         print (" {:04d}  main -- camera: {}  secs: {:02.2f}".format(
