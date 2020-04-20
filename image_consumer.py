@@ -125,7 +125,8 @@ def image_consumer(consumer_id,
                 saved = False
                 if num_detections > 0:
                     if settings.save_inference and new_objects > 0:
-                        base_name = '{}-{}-{}'.format(image_time, camera_id, region_id)   
+                        # base name == sssssss-camera_id-region_id-c/g
+                        base_name = '{}-{}-{}-{}'.format(image_time, camera_id, region_id, is_color_gc(orig_image))   
                         image_name = os.path.join(settings.image_path,  base_name + '.jpg')
                         annotation_name = os.path.join(settings.annotation_path,  base_name + '.xml')
                         # print ("saving:", image_name, image.shape, annotation_name)
@@ -164,5 +165,5 @@ def image_consumer(consumer_id,
     if settings.run_state == False:
         print (" ******* image consummer {} shutdown *******".format(consumer_id))
         
-    # DON'T SLEEP -- because this is a single thread
+    time.sleep(0.1)  # with multiple consumers, you can sleep a bit
     return

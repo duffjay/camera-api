@@ -25,7 +25,7 @@ def get_validated_face_count(faces):
         time_eligible = True
     for (x, y, w, h) in faces:
         size = int(w * h)
-        if size > 7000:
+        if size > 5000:
             sufficient_size = True
         face_sizes.append(size)
         face_count = face_count + 1 

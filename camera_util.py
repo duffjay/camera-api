@@ -1,6 +1,4 @@
 import io
-import cv2
-import numpy
 import random
 import string
 import urllib
@@ -20,28 +18,33 @@ def get_camera_config(config, camera_num):
     camera_config = config['camera'][camera_num]
     return camera_config
 
-# DEPRECATED
-def DELETE_get_camera(ip, port, username, password, mfr):
-    '''
-    get the camera object
-    '''
-
-    if mfr == 'Amcrest':
-        # construct camera URL
-        URL = "http://{}:{}@{}/cgi-bin/mjpg/video.cgi?channel=0&subtype=1".format(username, password, ip)
-    elif mfr == 'Reolink':
-        # URL = "http://{}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=wuuPhkmUCeI9WG7C&user={}&password={}".format(ip, username, password)
-        URL = "http://{}/cgi-bin/api.cgi?cmd=Snap&channel=0&user={}&password={}".format(ip, username, password)
+# is the image color?
+#  return g == grayscale
+#         c == color
+# append on the file names
+def is_color_gc(image):
+    height, width, channels = image.shape
+    # grab a center section 40x40
+    size = 40
+    start_y = int((height / 2) - (size / 2))
+    start_x = int((width / 2) - (size / 2))
+    end_y = start_y + size
+    end_x = start_x + size
+    # arbitrarily calling the planes r, g, b  (not really sure if it's rgb or bgr)
+    #             but it doesn't matter
+    r = image[start_y:end_y, start_x:end_x, 0]          # gotta be integers
+    b = image[start_y:end_y, start_x:end_x, 1]
+    g = image[start_y:end_y, start_x:end_x, 2]
+    # take difference - not exhaustive but good enough
+    diff_rg = np.sum(np.absolute(r - b))                # get absolute values - then sum the differences
+    diff_gb = np.sum(np.absolute(g - b))
+    # use a threshold
+    if (diff_rg + diff_gb) > 0.10:
+        result = 'c'
     else:
-        print ("** bad mfr value: ", mfr)
+        result = 'g'
 
-    # http://192.168.1.122/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=wuuPhkmUCeI9WG7C&user=admin&password=sT1nkeye
-    # rtsp://admin:sT1nk&ye@192.168.1.122:554//h264Preview_01_main
-
-    camera = cv2.VideoCapture(URL)     # returns a VideoCapture object
-    camera.set(cv2.CAP_PROP_FPS, 20)   # set the capture rate - not sure this did anyting
-    # return the VideoCapture object
-    return camera
+    return result 
 
 # sets up memory structures for ALL  cameras
 def config_camara_data(config):
