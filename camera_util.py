@@ -112,7 +112,7 @@ def get_reolink_snapshot(url, username, password):
 
     try:
         # debug
-        print ("Camera Request HTTP Request: ", snap)
+        # print ("Camera Request HTTP Request: ", snap)
         reader = urllib.request.urlopen(snap, timeout=10)
         img_bytes = bytearray(reader.read())
         img_array = Image.open(io.BytesIO(img_bytes))
