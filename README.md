@@ -9,6 +9,7 @@ pip install opencv-python
 pip install pillow
 pip install imutils  
 pip install matplotlib   # req'd for the graph conversion
+pip install contextlib2
 
 Tensorflow or just the TFLite Interpreter?  Well, you will be using a lot of tf.* utilities  
 pip install tensorflow-gpu==1.15  
