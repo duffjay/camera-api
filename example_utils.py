@@ -148,7 +148,7 @@ def voc_to_tfrecord_file(image_dir,
 
             # loop through each image in the image list
 
-            for image_id in image_list:
+            for index, image_id in enumerate(image_list):
                 if image_id.startswith('.'):
                     continue
                 # get annotation information
@@ -280,7 +280,9 @@ def voc_to_tfrecord_file(image_dir,
 
                 tf_example = tf.train.Example(features=features)
                 # write to the tfrecords writer
-                tf_writer.write(tf_example.SerializeToString())
+                # tf_writer.write(tf_example.SerializeToString())
+                output_shard_index = index % NUM_SHARDS
+                output_tfrecords[output_shard_index].write(tf_example.SerializeToString())
                 image_count = image_count + 1
 
         # end of loop
