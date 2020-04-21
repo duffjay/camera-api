@@ -126,7 +126,8 @@ def image_consumer(consumer_id,
                 if num_detections > 0:
                     if settings.save_inference and new_objects > 0:
                         # base name == sssssss-camera_id-region_id-c/g
-                        base_name = '{}-{}-{}-{}'.format(image_time, camera_id, region_id, is_color_gc(orig_image))   
+                        color_code = camera_util.is_color_gc(orig_image)                                # g == grayscale, c == color
+                        base_name = '{}-{}-{}-{}'.format(image_time, camera_id, region_id, color_code)   
                         image_name = os.path.join(settings.image_path,  base_name + '.jpg')
                         annotation_name = os.path.join(settings.annotation_path,  base_name + '.xml')
                         # print ("saving:", image_name, image.shape, annotation_name)

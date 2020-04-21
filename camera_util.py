@@ -35,9 +35,9 @@ def is_color_gc(image):
     end_x = start_x + size
     # arbitrarily calling the planes r, g, b  (not really sure if it's rgb or bgr)
     #             but it doesn't matter
-    r = image[start_y:end_y, start_x:end_x, 0]          # gotta be integers
-    b = image[start_y:end_y, start_x:end_x, 1]
-    g = image[start_y:end_y, start_x:end_x, 2]
+    r = image[:, :, 0]          # gotta be integers
+    b = image[:, :, 1]
+    g = image[:, :, 2]
     # take difference - not exhaustive but good enough
     diff_rg = np.sum(np.absolute(r - b))                # get absolute values - then sum the differences
     diff_gb = np.sum(np.absolute(g - b))
