@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import time
+import re
 
 from os import listdir
 from os.path import isfile, join
@@ -86,6 +87,27 @@ OBJ_WEIGHT = 1
 
 
 NUM_SHARDS = 12
+
+# get a list of ALL tfrecord files - from a list of directories
+def get_all_tfrecords(path_list):
+    '''
+    input:  path_list is a list of full absolute directories
+    assumes all tfrecord files have extention == record-?????-of-?????
+    output: list of full tfrecord file paths
+    '''
+    pattern = r'^(\w+)\.record-\d{5}-of-\d{5}$'
+    total_tfrecord_list = []
+    for path in path_list:
+        # get list of files in directory path
+        for f in os.listdir(path): # all directory entries
+            full_file_path = os.path.join(path, f)
+            if os.path.isfile(full_file_path):   # all files
+                matchObj = re.match(pattern, f)
+                if matchObj.group() is not None:
+                    total_tfrecord_list.append(full_file_path)
+        print ('{} tfrecord files found in: {}'.format(len(total_tfrecord_list), path))
+    print ('{} TOTAL tfrecord files found'.format(len(total_tfrecord_list)))
+    return total_tfrecord_list
 
 # return a list of imagesets in given directory
 def get_imagesets(imageset_dir):
