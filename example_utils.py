@@ -86,7 +86,7 @@ OBJ_GROUP_OF = 1
 OBJ_WEIGHT = 1
 
 
-NUM_SHARDS = 12
+NUM_SHARDS = 16
 
 # get a list of ALL tfrecord files - from a list of directories
 def get_all_tfrecords(path_list):
