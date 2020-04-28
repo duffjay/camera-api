@@ -85,15 +85,15 @@ def image_consumer(consumer_id,
                 num_detections = prob_array.shape[0]
               
                 # check for new detections
-                # - per camera - per region
-                iou_threshold = 0.9    # IOU > 0.90
+                # - per camera - per region 
                 if num_detections > 0:
                     # need bbox_array as a numpy
                     new_objects, dup_objects = tensorflow_util.identify_new_detections(
-                        iou_threshold, camera_id, region_id, bbox_array, bbox_stack_lists[camera_id], bbox_push_lists[camera_id])
+                        settings.iou_threshold, camera_id, region_id, bbox_array, bbox_stack_lists[camera_id], bbox_push_lists[camera_id])
                 
-                # display
-                window_name = '{}-{}'.format(camera_name, region_id)
+                # display - 
+                # NOTE - Displaying w/ cv2 in multi-threads is a problem!!   1 consumer only if you want to enable this
+                # window_name = '{}-{}'.format(camera_name, region_id)
                 if num_detections > 0:
                     image = np_image    
                     # TODO - get rid of the threshold
@@ -161,10 +161,12 @@ def image_consumer(consumer_id,
         except Exception as e:
             with settings.safe_print:
                 print ('  IMAGE-CONSUMER:!!! ERROR - Exception  Consumer ID: {}'.format(consumer_id))
+                print ("                ", e)
+        time.sleep(1)  # with multiple consumers, you can sleep a bit
 
     # stop?
     if settings.run_state == False:
         print (" ******* image consummer {} shutdown *******".format(consumer_id))
         
-    time.sleep(0.1)  # with multiple consumers, you can sleep a bit
+    
     return

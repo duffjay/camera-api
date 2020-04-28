@@ -13,7 +13,7 @@ PROJECT_DIR = os.getcwd()
 
 IMAGE_DIR = os.path.join(PROJECT_DIR, "jpeg_images")
 MODEL_PATH = os.path.join(PROJECT_DIR, "model/frozen_inference_graph.pb")
-LABEL_MAP = os.path.join(PROJECT_DIR, "model/mscoco_label_map.pbtxt")
+LABEL_MAP = os.path.join(PROJECT_DIR, "model/security_label_map.pbtxt")
 ANNOTATION_DIR = os.path.join(PROJECT_DIR, "annotation")
 
 # get a frozen graph
@@ -29,7 +29,7 @@ for f in dir_list:
         image_list.append(full_path)
 
 # limitations with the way we are displaying
-image_list = image_list[:1000]
+image_list = image_list[5:1000]
 print ("Image Count:", len(image_list))
 print ("Sample:",image_list[0])
 
@@ -38,6 +38,9 @@ print ("Sample:",image_list[0])
 # i = tensorflow_util.send_image_to_frozen_graph(image_list, detection_graph)
 
 sess, tensor_dict, image_tensor = tensorflow_util.get_tf_session(detection_graph)
+print ("session:", sess)
+print ("tensor_dict:", tensor_dict)
+print ("image_tensor:", image_tensor)
 
 for i,image_path in enumerate(image_list):
     print (i, image_path)
@@ -49,16 +52,15 @@ for i,image_path in enumerate(image_list):
     image_np_expanded = np.expand_dims(image_np, axis=0)
     # Actual detection.
     start = time.perf_counter()
-    print ("Start:", start)
     # -- run model
-    output_dict = tensorflow_util.send_image_to_tf_sess(image_np_expanded, sess, tensor_dict, image_tensor)
-    print ("Output dict: \n", output_dict)
+    output_tuple = tensorflow_util.send_image_to_tf_sess(image_np_expanded, sess, tensor_dict, image_tensor)
+    # print ("Output tuple: \n", type(output_tuple), output_tuple)
 
     # get data for relavant detections
-    num_detections = output_dict['num_detections']
-    detection_scores = output_dict['detection_scores'][0:num_detections]
-    detection_classes = output_dict['detection_classes'][0:num_detections]
-    detection_boxes = output_dict['detection_boxes'][0:num_detections]
+    num_detections = len(output_tuple[0])
+    detection_scores = output_tuple[0]
+    detection_classes = output_tuple[1]
+    detection_boxes = output_tuple[2]
 
     print ("Number of Detections:", num_detections)
     print ("scores:", detection_scores)
@@ -68,7 +70,7 @@ for i,image_path in enumerate(image_list):
 
     finish = time.perf_counter()
     print (f'Finished in {round(finish - start, 2)} seconds(s)')
-    if i > 2:
+    if i > 50:
         break
 
 

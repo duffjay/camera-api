@@ -59,3 +59,7 @@ def init(config_filename):
         facial_detection_enabled = True 
     last_recognized_face_id = 0
     last_recognized_face_time = 0.0
+
+    # new object IoU Threshold
+    global iou_threshold
+    iou_threshold = 0.8
