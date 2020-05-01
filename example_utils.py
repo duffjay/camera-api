@@ -86,7 +86,7 @@ OBJ_GROUP_OF = 1
 OBJ_WEIGHT = 1
 
 
-NUM_SHARDS = 16
+NUM_SHARDS = 40
 
 # get a list of ALL tfrecord files - from a list of directories
 def get_all_tfrecords(path_list):
@@ -130,10 +130,18 @@ def invert_dict(orig_dict):
     inverted_dict = dict([[v,k] for k,v in orig_dict.items()])
     return inverted_dict
 
+def get_image_annotation_paths(image_list_entry):
+    annotation_path = image_list_entry + '.xml'
+    image_path = image_list_entry.replace('/annotation/', '/jpeg_images/') + 'jpg'
+    return annotation_path, image_path
+
 # from VOC compliant images/annotations/sets
 # convert to tfrecords
-def voc_to_tfrecord_file(image_dir,
-                    annotation_dir,
+# this has been changed 20200501
+#   image_list is now a full path - because sharding was required
+#   the image_list item == the annotation path (not the jpeg path)
+def voc_to_tfrecord_file(image_root,
+                    annotation_root,
                     label_map_file,
                     tfrecord_dir,
                     training_split_tuple,
@@ -146,7 +154,7 @@ def voc_to_tfrecord_file(image_dir,
     label_map = get_label_map_dict(label_map_file, 'value')
     # label_map_dict = invert_dict(origin_label_map_dict)    # we need the id, not the name as the key
 
-    train_list, val_list, test_list = gen_imageset_list(annotation_dir, training_split_tuple)
+    train_list, val_list, test_list = gen_imageset_list(annotation_root, training_split_tuple)
 
     print (label_map)
 
@@ -159,7 +167,7 @@ def voc_to_tfrecord_file(image_dir,
 
         # you can create/open the tfrecord writer
         output_path = os.path.join(tfrecord_dir, imageset_name, imageset_name + ".record")
-        # tf_writer = tf.python_io.TFRecordWriter(output_path)
+        # tf_writer = tf.io.TFRecordWriter(output_path)
         print (" -- images", len(image_list), " writing to:", output_path)
         with contextlib2.ExitStack() as tf_record_close_stack:
             output_tfrecords = tf_record_creation_util.open_sharded_output_tfrecords(
@@ -173,8 +181,9 @@ def voc_to_tfrecord_file(image_dir,
             for index, image_id in enumerate(image_list):
                 if image_id.startswith('.'):
                     continue
-                # get annotation information
-                annotation_path = os.path.join(annotation_dir, image_id + '.xml')
+                # get paths
+                annotation_path, image_path = get_image_annotation_paths(image_id)
+
                 with open(annotation_path) as f:
                         soup = BeautifulSoup(f, 'xml')
 
@@ -221,8 +230,7 @@ def voc_to_tfrecord_file(image_dir,
                             boxes.append(item_dict)
         
                 # get the encoded image
-                img_path = os.path.join(image_dir, image_id + ".jpg")
-                with tf.io.gfile.GFile(img_path, 'rb') as fid:
+                with tf.io.gfile.GFile(image_path, 'rb') as fid:
                     encoded_jpg = fid.read()
 
                 # now you have everything necessary to create a tf.example

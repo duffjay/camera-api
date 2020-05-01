@@ -138,8 +138,8 @@ def image_consumer(consumer_id,
                         annotation_xml = annotation.inference_to_xml(settings.image_path, image_name,orig_image_dim, detected_objects, settings.annotation_path )
                 
                 with settings.safe_print:
-                    print ('  IMAGE-CONSUMER:<< image queue size: {}, camera name: {} region: {} image_timestamp {}  inference time:{:02.2f} sec  detections: {}'.format(
-                        settings.imageQueue.qsize(), camera_name, region_id, image_time, (time.perf_counter() - start), num_detections))
+                    print ('  IMAGE-CONSUMER:<< {} image queue size: {}, camera name: {} region: {} image_timestamp {}  inference time:{:02.2f} sec  detections: {}'.format(
+                        consumer_id, settings.imageQueue.qsize(), camera_name, region_id, image_time, (time.perf_counter() - start), num_detections))
                     for detection_id in range(num_detections):
                         print ('      detection {}  classes detected{} new: {}  repeated: {}'.format(detection_id, class_array, new_objects, dup_objects))
                         print ('           Scores: {}   Classes: {}'.format(prob_array, class_array))
@@ -162,7 +162,7 @@ def image_consumer(consumer_id,
             with settings.safe_print:
                 print ('  IMAGE-CONSUMER:!!! ERROR - Exception  Consumer ID: {}'.format(consumer_id))
                 print ("                ", e)
-        time.sleep(1)  # with multiple consumers, you can sleep a bit
+        # time.sleep(0.1)  # with multiple consumers, you can sleep a bit
 
     # stop?
     if settings.run_state == False:
