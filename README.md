@@ -13,6 +13,7 @@ pip install imutils
 pip install matplotlib   # req'd for the graph conversion
 pip install contextlib2  
 pip install jupyter  
+pip install boto3  
 
 Tensorflow or just the TFLite Interpreter?  Well, you will be using a lot of tf.* utilities  
 pip install tensorflow-gpu==1.15  
@@ -23,7 +24,7 @@ python 3.6
 pip install tensorflow-1.15.2-cp36-cp36m-linux_x86_64.whl   
 
 intall kernel on Jupyter:  
-python -m ipykernel install --user --name=camera-api  
+python -m ipykernel install --user --name=security  
 
 ## get the TensorFlow utils & model => ~/projects
 This will also compile the protobufs  

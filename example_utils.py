@@ -132,7 +132,7 @@ def invert_dict(orig_dict):
 
 def get_image_annotation_paths(image_list_entry):
     annotation_path = image_list_entry + '.xml'
-    image_path = image_list_entry.replace('/annotation/', '/jpeg_images/') + 'jpg'
+    image_path = image_list_entry.replace('/annotation/', '/jpeg_images/') + '.jpg'
     return annotation_path, image_path
 
 # from VOC compliant images/annotations/sets
