@@ -78,6 +78,40 @@ def print_audit_list(image_list, audit_count):
         print ("        ", image_list[i])
     return
 
+def gen_verified_lists(annotation_root):
+    '''
+    from root - make verifed & non-verified lists
+    NO splits
+    '''
+    print ("-- MAKING Verified & NonVerified IMAGES LISTS")
+    # top level (root) path given, get all directories
+    root_contents = os.listdir(annotation_root)
+    annotation_subdirectories = []
+    for entry in root_contents:
+        full_entry_path = os.path.join(annotation_root, entry)
+        if os.path.isdir(full_entry_path):
+            annotation_subdirectories.append(full_entry_path)
+    print ("   found {} subdirectories".format(len(annotation_subdirectories)))
+    # now you have all subdirectories == annotation_subdirectories
+
+    total_verified_list = []     # empty list
+    total_non_verified_list = []
+    # loop thru each annotation dir in the list
+    for i, annotation_dir in enumerate(annotation_subdirectories):
+        single_verified_list, single_nonverified_list  = group_annotation_list(annotation_dir)
+        single_verified_count = len(single_verified_list)
+        single_nonverified_count = len(single_nonverified_list)
+        total_verified_list.extend(single_verified_list)
+        total_non_verified_list.extend(single_nonverified_list)
+        print ("   making list of verified annotations -- verified count {} / non {} in {}".format(
+            single_verified_count, single_nonverified_count, annotation_dir))
+    
+    verified_list_count = len(total_verified_list)
+    non_verified_list_count = len(total_non_verified_list)
+    print ("-- TOTAL list of verified annotations ------ count {}".format(verified_list_count))
+    print ("-- TOTAL list of NON verified annotations -- count {}".format(non_verified_list_count))
+    return total_verified_list, total_non_verified_list
+
 # create the image set
 #     
 def gen_imageset_list(annotation_root, training_split_tuple):
