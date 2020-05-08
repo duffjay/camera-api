@@ -161,17 +161,17 @@ item {
 item {
   name: "/m/018xm"
   id: 37
-  display_name: "sports ball"
+  display_name: "ups"
 }
 item {
   name: "/m/02zt3"
   id: 38
-  display_name: "kite"
+  display_name: "fedex"
 }
 item {
   name: "/m/03g8mr"
   id: 39
-  display_name: "baseball bat"
+  display_name: "amazon"
 }
 item {
   name: "/m/03grzl"
