@@ -8,9 +8,11 @@ import string
 import urllib
 
 import time
+import logging
 
 from PIL import Image
 
+log = logging.getLogger(__name__)
 
 def automatic_brightness_and_contrast(image, clip_hist_percent=25):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -93,6 +95,16 @@ def is_color_gc(image):
 
     return result 
 
+
+def get_camera_sleep_factor(config, camera_id):
+    '''
+    look up config and get the sleep_factor for this camera
+    '''
+    camera_config_list = config['camera']
+    camera_config = camera_config_list[camera_id]
+    sleep_factor = int(camera_config['sleep_factor'])
+    return sleep_factor
+
 # sets up memory structures for ALL  cameras
 def config_camara_data(config):
     camera_config_list = config['camera']            # get list of camera configs
@@ -114,7 +126,7 @@ def config_camara_data(config):
     bbox_push_lists = []
     for camera_id in range(camera_count):
         camera_config = camera_config_list[camera_id]
-        print ("Camera_Config:", camera_config)
+        log.info(f'Camera_Config: {camera_config}')
         regions_config = camera_config['regions']
         dedup_depth = camera_config['dedup_depth']
         bbox_stack_list = []
@@ -165,8 +177,8 @@ def get_reolink_snapshot(url, username, password):
         # print (" get_reolink_snapshot: ** captured ** ", img_numpy.shape)
         return img_bgr
     except Exception as e:
-        print ("get_snap failed:", snap)
-        print ("ERROR:",e)
+        log.error(f'get_snap failed: {snap}')
+        log.error(f'ERROR:  {e}')
         return None
 
 
@@ -181,7 +193,7 @@ def append_crop_region(regions, crop_corner, crop_size):
     return regions
 
 # Deprecate - reolink2tflite only
-def config_camera_regions(camera_config):
+def DEL_config_camera_regions(camera_config):
     # 
     # - - Camera Regions - - - 
     #     should be in JSON as [xmin, ymin, height, width]
@@ -260,7 +272,7 @@ def get_camera_regions(config):
         # print ("Camera: {} {} -- Frame Captured".format(name, start))
         np_images = extract_regions(config, rot_full_image)
     else:
-        print ("Camera: {} {} -- snapshot timeout".format(name, start))
+        log.warning(f'Camera: {name} {start} -- snapshot timeout')
         np_images = None
     
     return name, np_images

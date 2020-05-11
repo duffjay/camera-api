@@ -3,6 +3,7 @@ import sys
 import threading
 import queue
 
+
 import gen_util
 import aws_util
 
@@ -12,6 +13,8 @@ cwd = os.getcwd()
 #    to be used across files
 
 def init(config_filename):
+
+
 
     #
     # T O P    L E V E L   
@@ -63,3 +66,9 @@ def init(config_filename):
     # new object IoU Threshold
     global iou_threshold
     iou_threshold = 0.8
+
+    # universal sleep factor
+    # - base multiplier to make the cameras sleep
+    #   increase this if the imageQueue gets too big
+    global universal_sleep_factor
+    universal_sleep_factor = 0.01

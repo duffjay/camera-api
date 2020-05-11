@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import logging
 import cv2
 from PIL import Image
 
@@ -23,6 +24,8 @@ from object_detection.utils.np_box_ops import iou
 
 import label_map_util
 
+log = logging.getLogger(__name__)
+
 # H E L P E R    F U N C T I O N S
 
 # load an image and resturn a numpy array
@@ -33,7 +36,7 @@ def load_image_into_numpy_array(image):
 
 # C O N F I G U R A T I O N
 def configure_tensorflow_model(model_config):
-    print (model_config)
+    log.info(f'tensorflow model config: {model_config}')
     framework = model_config['model_framework']
     model_path = os.path.join('model', model_config['model_path'])
     
@@ -49,8 +52,9 @@ def configure_tensorflow_model(model_config):
     #   so I put it in the config - this is overwriting whatever tflite reported - beware
     model_input_dim = model_config['model_input_dim']
     model_image_dim = (model_config['model_input_dim'][1], model_config['model_input_dim'][2])
-    print ("Model Framework: {}   model input dim: {}   image dim: {}".format(framework, model_input_dim, model_image_dim))
-    print ("      Label Map: {}".format(label_map))
+    # print ("Model Framework: {}   model input dim: {}   image dim: {}".format(framework, model_input_dim, model_image_dim))
+    # print ("      Label Map: {}".format(label_map))
+    log.info(f'Model Framework: {framework}   model input dim: {model_input_dim}   image dim: {model_image_dim}')
     return sess, tensor_dict, image_tensor, model_input_dim, label_map, label_dict
 
 
@@ -80,39 +84,6 @@ def configure_tflite_model(model_config):
     print ("      Label Map: {}".format(label_map))
     return framework, interpreter, model_input_dim, output_details, label_map, label_dict
 
-# DEPRECATED
-# TEST THIS - reolink2model.py
-def DELETE_configure_model(model_config):
-    print (model_config)
-    framework = model_config['model_framework']
-    model_path = os.path.join('model', model_config['model_path'])
-    #
-    # S S D   M O D E L   F R A M E W O R K
-    # TF Lite
-    if framework == 'tflite':
-        interpreter = tensorflow_util.get_tflite_interpreter(model_path)
-        model_image_dim, model_input_dim, output_details = get_tflite_attributes(interpreter)
-        sess = None
-    
-    # TensorFlow  Frozen Graph
-    elif framework == "tensorflow":
-        # get a frozen graph
-        detection_graph = get_detection_graph(model_path)
-        sess, tensor_dict, image_tensor = get_tf_session(detection_graph)
-        interpreter = None
-        output_details = None
-
-    label_map = model_config['label_map']
-    label_dict = label_map_util.get_label_map_dict(label_map, 'id')
-
-    # Model Input Dimensions
-    # - tflite will give it to you, but not tensorflow frozen graph
-    #   so I put it in the config - this is overwriting whatever tflite reported - beware
-    model_input_dim = model_config['model_input_dim']
-    model_image_dim = (model_config['model_input_dim'][1], model_config['model_input_dim'][2])
-    print ("Model Framework: {}   model input dim: {}   image dim: {}".format(framework, model_input_dim, model_image_dim))
-    print ("      Label Map: {}".format(label_map))
-    return framework, interpreter, sess, model_input_dim, output_details, label_map, label_dict
 
 def make_objects(boxes, class_ids_rev):
     '''
@@ -124,7 +95,7 @@ def make_objects(boxes, class_ids_rev):
         if str(box["class_id"]) not in class_ids_rev:
             continue
         if box['xmin'] == box['xmax'] or box['ymin'] == box['ymax']:
-            print('Box size zero removed')
+            log.info('Box size zero removed')
             continue
 
         class_name = class_ids_rev[str(box["class_id"])]
@@ -203,7 +174,7 @@ def get_tf_session(graph):
         ops = tf.get_default_graph().get_operations()
         # print ("ALL model operations:", type(ops), len(ops), ops)
         all_tensor_names = {output.name for op in ops for output in op.outputs}
-        print ("tensor names:", type(all_tensor_names), len(all_tensor_names))
+        log.debug(f'tensor names: {type(all_tensor_names)} : {len(all_tensor_names)}')
         tensor_dict = {}
         for key in [
             'num_detections', 'detection_boxes', 'detection_scores',
@@ -212,10 +183,10 @@ def get_tf_session(graph):
             tensor_name = key + ':0'
             if tensor_name in all_tensor_names:
                 tensor_value = tf.get_default_graph().get_tensor_by_name(tensor_name)
-                print (tensor_name, tensor_value)
+                log.debug(f'tensor name - {tensor_name} : {tensor_value}')
                 tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(tensor_name)
         if 'detection_masks' in tensor_dict:
-            print ("*** detection mask in the tensor dict ***")
+            log.debug("*** detection mask in the tensor dict ***")
             # The following processing is only for single image
             detection_boxes = tf.squeeze(tensor_dict['detection_boxes'], [0])
             detection_masks = tf.squeeze(tensor_dict['detection_masks'], [0])
@@ -271,7 +242,7 @@ def send_imagelist_to_frozen_graph(image_list, graph):
       ops = tf.get_default_graph().get_operations()
       # print ("ALL model operations:", type(ops), len(ops), ops)
       all_tensor_names = {output.name for op in ops for output in op.outputs}
-      print ("tensor names:", type(all_tensor_names), len(all_tensor_names))
+      log.debug(f'tensor names: {type(all_tensor_names)} : {len(all_tensor_names)}')
       tensor_dict = {}
       for key in [
           'num_detections', 'detection_boxes', 'detection_scores',
@@ -280,10 +251,10 @@ def send_imagelist_to_frozen_graph(image_list, graph):
         tensor_name = key + ':0'
         if tensor_name in all_tensor_names:
           tensor_value = tf.get_default_graph().get_tensor_by_name(tensor_name)
-          print (tensor_name, tensor_value)
+          log.debug(f'tensor name - {tensor_name} : {tensor_value}')
           tensor_dict[key] = tf.get_default_graph().get_tensor_by_name(tensor_name)
       if 'detection_masks' in tensor_dict:
-        print ("*** detection mask in the tensor dict ***")
+        log.debug("*** detection mask in the tensor dict ***")
         # The following processing is only for single image
         detection_boxes = tf.squeeze(tensor_dict['detection_boxes'], [0])
         detection_masks = tf.squeeze(tensor_dict['detection_masks'], [0])
@@ -299,14 +270,14 @@ def send_imagelist_to_frozen_graph(image_list, graph):
         tensor_dict['detection_masks'] = tf.expand_dims(
             detection_masks_reframed, 0)
       image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
-      print ("image_tensor:", image_tensor)
+      log.debug(f'image_tensor: {image_tensor}')
         
       # Run inference
-      print (" --- run the model ---")
+      log.info(" --- run the model ---")
 
 
       for i,image_path in enumerate(image_list):
-        print (i, image_path)
+        log.info(f'index: {i} {image_path}')
         image = Image.open(image_path)
         # the array based representation of the image will be used later in order to prepare the
         # result image with boxes and labels on it.
@@ -328,7 +299,7 @@ def send_imagelist_to_frozen_graph(image_list, graph):
             output_dict['detection_masks'] = output_dict['detection_masks'][0]
         # print ("Detection:", output_dict)
         finish = time.perf_counter()
-        print (f'Finished in {round(finish - start, 2)} seconds(s)')
+        log.info(f'Finished in {round(finish - start, 2)} seconds(s)')
 
 
   return i
@@ -416,10 +387,10 @@ def calc_iou_with_previous(bbox_iou_threshold, region_id, bbox_stack_list, bbox_
     bbox_stack = bbox_stack_list[region_id]
     bbox = bbox_array.reshape(-1,4)
 
-    # print ("\n\n ---- BEFORE ----")
-    # print ("Stack Before:", bbox_stack)
-    # print ("bbox:", bbox)
-    # print ("push list BEFORE:", bbox_push_list[region_id])
+    log.debug("---- BEFORE ----")
+    log.debug(f'Stack Before: {bbox_stack}')
+    log.debug(f'bbox: {bbox}')
+    log.debug(f'push list BEFORE:  {bbox_push_list[region_id]}')
 
     match_rates = iou(bbox_stack, bbox)
     det_obj_count = bbox.shape[0]
@@ -439,21 +410,21 @@ def calc_iou_with_previous(bbox_iou_threshold, region_id, bbox_stack_list, bbox_
                                                             # zero based index so subtract 1
     bbox_push_list[region_id].pop(0)                        # pop the first
 
-    # print ("----- AFTER -----")
-    # print ("-- bbox_stack ", bbox_stack.shape)
-    # print ("-- bbox       ", bbox.shape)
+    log.debug("----- AFTER -----")
+    log.debug(f'-- bbox_stack {bbox_stack.shape}')
+    log.debug(f'-- bbox       {bbox.shape}')
     bbox_stack_list[region_id] = np.append(bbox_stack, bbox, 0)
-    # print ("-- box_stack_list-appended", region_id, bbox_stack_list[region_id].shape)
-    # print ("Stack BEFORE delete:", bbox_stack_list[region_id])
+    log.debug(f'-- box_stack_list-appended: {region_id} {bbox_stack_list[region_id].shape}')
+    log.debug(f'Stack BEFORE delete:  {bbox_stack_list[region_id]}')
 
-    # print ("Slice:", objects_to_remove)
+    log.debug(f'Slice: {objects_to_remove}')
     bbox_stack_list[region_id] = np.delete(bbox_stack_list[region_id], slice(0, objects_to_remove), 0)
 
-    # print ("Match Counts:", match_counts)
-    # print ("Stack After:", bbox_stack_list[region_id])
-    # print ("Push List:", bbox_push_list[region_id])
+    log.debug(f'Match Counts: {match_counts}')
+    log.debug(f'Stack After:  {bbox_stack_list[region_id]}')
+    log.debug(f'Push List:    {bbox_push_list[region_id]}')
 
-    # print (" -- match counts:", match_counts)
+    log.debug(f'-- match counts: {match_counts}')
     return match_counts
 
 

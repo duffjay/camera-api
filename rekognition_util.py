@@ -1,3 +1,4 @@
+import logging
 import cv2
 import boto3
 from botocore.exceptions import ClientError
@@ -7,6 +8,7 @@ import settings
 
 # https://docs.aws.amazon.com/rekognition/latest/dg/rekognition-dg.pdf
 
+log = logging.getLogger(__name__)
 
 
 def create_collection(collection_id):
@@ -119,20 +121,20 @@ def search_faces_by_image(collection_id, np_image):
             break
         except ClientError as e:
             if e.response['Error']['Code'] == 'ExpiredTokenException':
-                print(" - - - UPDATE SESSION - - - ")
+                log.warning(f'rekognition: UPDATE SESSION')
                 settings.aws_session = aws_util.get_session()
                 # no break - you can retry
 
             elif e.response['Error']['Code'] == 'InvalidParameterException':
-                print(" - - - no faces? - - - ")
+                log.warning(f'rekognition: no faces?')
                 break       # no reason to try again
 
             else:
-                print ("unhandled AWS ClientError:", e)
+                log.error(f'unhandled AWS ClientError: {e}')
                 break       # no reason to try again
         
         except Exception as e:
-            print ("General Exception:", e)
+            log.error(f'rekognition - General Exception: {e}')
             break
 
         # else:
@@ -141,11 +143,7 @@ def search_faces_by_image(collection_id, np_image):
         
         retry_count += 1
         if retry_count > 3:
-            print ("!!! Retry Count exceeded !!!")
+            log.error(f'rekognition: !!! Retry Count exceeded !!!')
             break
 
     return (face_id, similarity)
-
-
-
-     # {'SearchedFaceBoundingBox': {'Width': 0.08219089359045029, 'Height': 0.1460799276828766, 'Left': 0.12093808501958847, 'Top': 0.32774946093559265}, 'SearchedFaceConfidence': 99.99976348876953, 'FaceMatches': [{'Similarity': 96.39073181152344, 'Face': {'FaceId': 'de74929a-deb4-492e-b39b-e5708bc481c8', 'BoundingBox': {'Width': 0.0609435997903347, 'Height': 0.14026999473571777, 'Left': 0.19517099857330322, 'Top': 0.1603659987449646}, 'ImageId': '6ea067a3-66ec-333f-ad05-531aeec3acac', 'ExternalImageId': '20160918_135541.jpg', 'Confidence': 100.0}}], 'FaceModelVersion': '4.0', 'ResponseMetadata': {'RequestId': 'd5369d25-301b-4d9f-b8a9-339c148cb13f', 'HTTPStatusCode': 200, 'HTTPHeaders': {'content-type': 'application/x-amz-json-1.1', 'date': 'Thu, 09 Apr 2020 17:31:53 GMT', 'x-amzn-requestid': 'd5369d25-301b-4d9f-b8a9-339c148cb13f', 'content-length': '544', 'connection': 'keep-alive'}, 'RetryAttempts': 0}}

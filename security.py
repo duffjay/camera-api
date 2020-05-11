@@ -3,6 +3,9 @@ import sys
 import time
 import cv2
 import threading
+import logging
+from logging.handlers import TimedRotatingFileHandler
+
 
 import numpy as np
 import traceback
@@ -38,6 +41,18 @@ def main():
     # args
     config_filename = sys.argv[1]   # 0 based
 
+    # logging
+    logger = logging.getLogger('security_application')
+    logger.setLevel(logging.INFO)
+    # file handler
+    logname = "security_app.log"
+    handler = TimedRotatingFileHandler(logname, when="midnight", interval=1)
+    handler.suffix = "%Y%m%d"
+    # formatter
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter
+    logger.addHandler(handler)
+
     # init the variables in security settings
     # - init only in main()
     # https://stackoverflow.com/questions/13034496/using-global-variables-between-files
@@ -50,8 +65,8 @@ def main():
     # camera config
     # - includes getting the data structures to track detections
     camera_config_list, camera_count, camera_snapshot_times, bbox_stack_lists, bbox_push_lists = camera_util.config_camara_data(settings.config)
-    print ("Camera Count:", camera_count)
-    print ("Facial Detection Enabled", settings.facial_detection_enabled)
+    logger.info("Camera Count: %d", camera_count)
+    logger.info("Facial Detection Enabled: %s", settings.facial_detection_enabled)
 
     #   I M A G E    C O N S U M E R S
     #   == face producers
@@ -91,7 +106,7 @@ def main():
     # run_state = False
 
     cv2.destroyAllWindows()
-    print ("main() exit")
+    logger.info("main() exit")
 
 
 

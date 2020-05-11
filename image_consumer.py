@@ -4,6 +4,7 @@ import time
 import cv2
 import threading
 import queue
+import logging
 import numpy as np
 
 
@@ -27,6 +28,8 @@ import display
 import annotation
 
 import settings
+
+log = logging.getLogger(__name__)
 
 #
 #  convert the facial detection list of lists 
@@ -62,7 +65,7 @@ def check_faces(camera_id, region_id, region_list, class_array):
 def image_consumer(consumer_id, 
         sess, tensor_dict, image_tensor, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict):
 
-    print ("IMAGE-CONSUMER started #{}".format(consumer_id))
+    log.info(f'IMAGE-CONSUMER started #{consumer_id}')
         # configuration
     facial_detection_regions = convert_facial_lists(settings.config["facial_detection_regions"]) # list of lists converted to list of tuple-2  (camera_id, regions_id)
 
@@ -138,19 +141,24 @@ def image_consumer(consumer_id,
                         annotation_xml = annotation.inference_to_xml(settings.image_path, image_name,orig_image_dim, detected_objects, settings.annotation_path )
                 
                 with settings.safe_print:
-                    print ('  IMAGE-CONSUMER:<< {} image queue size: {}, camera name: {} region: {} image_timestamp {}  inference time:{:02.2f} sec  detections: {}'.format(
-                        consumer_id, settings.imageQueue.qsize(), camera_name, region_id, image_time, (time.perf_counter() - start), num_detections))
+                    log_msg = '  IMAGE-CONSUMER:<< {} image queue size: {}, camera name: {} region: {} image_timestamp {}  inference time:{:02.2f} sec  detections: {}'.format(
+                        consumer_id, settings.imageQueue.qsize(), camera_name, region_id, image_time, (time.perf_counter() - start), num_detections)
+                    log.info(log_msg)
                     for detection_id in range(num_detections):
-                        print ('      detection {}  classes detected{} new: {}  repeated: {}'.format(detection_id, class_array, new_objects, dup_objects))
-                        print ('           Scores: {}   Classes: {}'.format(prob_array, class_array))
+                        log_msg = '      detection {}  classes detected{} new: {}  repeated: {}'.format(detection_id, class_array, new_objects, dup_objects)
+                        log.info(log_msg)
+                        log_msg = '           Scores: {}   Classes: {}'.format(prob_array, class_array)
+                        log.info(log_msg)
                         for bbox in bbox_array:
-                            print ('           bbox:', bbox)
+                            log_msg = '           bbox: {}'.format(bbox)
+                            log.info(log_msg)
                     if pushed_to_face_queue == True:
-                        print ('      pushed to faceQueue')
+                        log.info('      pushed to faceQueue')
                     if saved == True:
-                        print ("      Saved: stale objects: {}  new objects: {}   image_name: {}".format( dup_objects, new_objects, image_name))
+                        log_msg = "      Saved: stale objects: {}  new objects: {}   image_name: {}".format( dup_objects, new_objects, image_name)
+                        log.info(log_msg)
                     else:
-                        print ("      No new objects detected --- not saved")
+                        log.info("      No new objects detected --- not saved")
 
 
 
@@ -160,13 +168,13 @@ def image_consumer(consumer_id,
 
         except Exception as e:
             with settings.safe_print:
-                print ('  IMAGE-CONSUMER:!!! ERROR - Exception  Consumer ID: {}'.format(consumer_id))
-                print ("                ", e)
-        # time.sleep(0.1)  # with multiple consumers, you can sleep a bit
+                log.error(f'  IMAGE-CONSUMER:!!! ERROR - Exception  Consumer ID: {consumer_id}')
+                log.error(f'                {e}')
+        
 
     # stop?
     if settings.run_state == False:
-        print (" ******* image consummer {} shutdown *******".format(consumer_id))
+        log.info(f'******* image consummer {consumer_id} shutdown *******')
         
     
     return

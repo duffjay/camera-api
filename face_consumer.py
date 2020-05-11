@@ -5,6 +5,7 @@ import json
 
 import cv2
 import threading
+import logging
 import queue
 import numpy as np
 import traceback
@@ -13,6 +14,7 @@ import rekognition_util
 
 import settings
 
+log = logging.getLogger(__name__)
 
 def get_validated_face_count(faces):
     face_sizes = []
@@ -39,7 +41,7 @@ def get_validated_face_count(faces):
 # If known face detected, then write status
 def face_consumer(consumer_id):
     with settings.safe_print:
-        print (' FACE-CONSUMER Started')
+        log.info(' FACE-CONSUMER Started')
     # cascade classifier
     face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
     while True:
@@ -98,15 +100,17 @@ def face_consumer(consumer_id):
                 elapsed = time.perf_counter() - start
                 if rekog_invoked == True:
                     with settings.safe_print:
-                        print ('   FACE-CONSUMER:-- queue size: {} camera ID: {} region ID: {} image_timestamp {}  inference time:{:02.2f} sec  faces: {} {} {:.2f}'.format(
-                            queue_size, camera_id, region_id, image_time, elapsed, face_count, match_id, similarity))
+                        log_msg = '   FACE-CONSUMER:-- queue size: {} camera ID: {} region ID: {} image_timestamp {}  inference time:{:02.2f} sec  faces: {} {} {:.2f}'.format(
+                            queue_size, camera_id, region_id, image_time, elapsed, face_count, match_id, similarity)
+                        log.info(log_msg)
                 else:
                     with settings.safe_print:
-                        print ('   FACE-CONSUMER:--queue size: {} camera ID: {} region ID: {} image_timestamp {}  inference time:{:02.2f} sec time eligible: {}  face count: {}'.format(
-                            queue_size, camera_id, region_id, image_time, elapsed, time_eligible, face_count))
+                        log_msg = '   FACE-CONSUMER:--queue size: {} camera ID: {} region ID: {} image_timestamp {}  inference time:{:02.2f} sec time eligible: {}  face count: {}'.format(
+                            queue_size, camera_id, region_id, image_time, elapsed, time_eligible, face_count)
+                        log.info(log_msg)
 
             except Exception as e:
-                print ("--------------------------------------------------- processing faces - ERROR:", e)
+                log.error(f'- - processing faces - ERROR: {e}')
                            
         except queue.Empty:
             # with settings.safe_print:
@@ -115,7 +119,7 @@ def face_consumer(consumer_id):
         
         except Exception as e:
             with settings.safe_print:
-                print ('   FACE-CONSUMER:  ERROR {}'.format(e))
+                log.error(f'   FACE-CONSUMER:  ERROR {e}')
                 traceback.print_exc()
 
         time.sleep(0.1)
