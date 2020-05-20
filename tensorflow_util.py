@@ -1,10 +1,26 @@
+import re
+import logging
+from logging.handlers import TimedRotatingFileHandler
+
+# tensorflow logger
+# -- trying (unsuccessfully) to direct the default tensorflow log to file handler
+# -- 
+logTF = logging.getLogger('tensorflow')
+logTF.setLevel(logging.INFO)
+logname = 'tensorflow.log'
+handler = TimedRotatingFileHandler(logname, when="midnight", interval=1)
+handler.suffix = "%Y%m%d"
+handler.extMatch = re.compile(r"^\d{8}$")
+# formatter
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logTF.addHandler(handler)
+
 import os
 import sys
 import time
-import logging
 import cv2
 from PIL import Image
-
 import numpy as np
 import tensorflow as tf
 
@@ -15,7 +31,6 @@ slim = os.path.abspath(os.path.join(cwd, '..', 'models/research/slim'))
 sys.path.append(models)
 sys.path.append(slim)
 
-
 from google.protobuf import text_format
 from object_detection.protos import string_int_label_map_pb2
 from object_detection.utils.np_box_ops import iou
@@ -23,7 +38,10 @@ from object_detection.utils.np_box_ops import iou
 #import tflite_runtime.interpreter as tflite
 
 import label_map_util
+import inference
+import status
 
+# main logger
 log = logging.getLogger(__name__)
 
 # H E L P E R    F U N C T I O N S
@@ -207,15 +225,16 @@ def get_tf_session(graph):
 
 # the model yields all detections over 0 probabiliity
 # keep only the ones over threshold
-# return numpy arrays
-def convert_output_dict_to_numpy(output_dict, threshold):
+# return ModelInferenceObject
+def convert_output_to_inference_object(output_dict, threshold):
     scores = output_dict['detection_scores']
     good_detection_count = len([i for i in scores if i >= threshold])
     # convert ONLY GOOD inferences to numpy
     prob_array = np.array(output_dict['detection_scores'][:good_detection_count])
     class_array = np.array(output_dict['detection_classes'][:good_detection_count])
     bbox_array = np.array(output_dict['detection_boxes'][:good_detection_count])
-    return prob_array, class_array, bbox_array
+    inf = inference.ModelInference(class_array, prob_array, bbox_array)
+    return inf
 
 
 def send_image_to_tf_sess(image_np_expanded, sess, tensor_dict, image_tensor):
@@ -229,9 +248,10 @@ def send_image_to_tf_sess(image_np_expanded, sess, tensor_dict, image_tensor):
     if 'detection_masks' in output_dict:
         output_dict['detection_masks'] = output_dict['detection_masks'][0]
     
-    # Convert good detections to numpy
+    # Convert good detections to ModelInference object
     threshold = 0.7
-    return convert_output_dict_to_numpy(output_dict, threshold)
+    inf = convert_output_to_inference_object(output_dict, threshold)
+    return inf
 
 # frozen graph
 # -- development only -- this should be discarded at some point
@@ -357,7 +377,7 @@ def detected_objects_to_annotation(detected_objects):
 #    B O U N D I N G    B O X    U T I L I T I E S
 # - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-def calc_iou_with_previous(bbox_iou_threshold, region_id, bbox_stack_list, bbox_push_list, bbox_array):
+def calc_iou_with_previous(image_time, bbox_iou_threshold, camera_id, region_id, bbox_stack_list, bbox_push_list, bbox_array):
     '''
     use IOU algorithm to compare current with previous
     stack is a all bboxes from previous inferences (where something was detected)
@@ -384,17 +404,19 @@ def calc_iou_with_previous(bbox_iou_threshold, region_id, bbox_stack_list, bbox_
     '''
 
     # get the bbox_stack
-    bbox_stack = bbox_stack_list[region_id]
+    bbox_stack = bbox_stack_list[region_id]  # should be [4, depth]
     bbox = bbox_array.reshape(-1,4)
 
-    log.debug("---- BEFORE ----")
-    log.debug(f'Stack Before: {bbox_stack}')
-    log.debug(f'bbox: {bbox}')
-    log.debug(f'push list BEFORE:  {bbox_push_list[region_id]}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} ---- BEFORE ----')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} Stack Before: {bbox_stack.shape}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} stack: {bbox_stack.tolist()}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} bbox: {bbox}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} push list BEFORE:  {bbox_push_list[region_id]}')
 
     match_rates = iou(bbox_stack, bbox)
     det_obj_count = bbox.shape[0]
 
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} match_rates: {match_rates.tolist()}')
     # for the number of detected objects (1 object = 1 bb0x)
     # how many matches?
     match_counts = []
@@ -410,33 +432,33 @@ def calc_iou_with_previous(bbox_iou_threshold, region_id, bbox_stack_list, bbox_
                                                             # zero based index so subtract 1
     bbox_push_list[region_id].pop(0)                        # pop the first
 
-    log.debug("----- AFTER -----")
-    log.debug(f'-- bbox_stack {bbox_stack.shape}')
-    log.debug(f'-- bbox       {bbox.shape}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} ----- AFTER -----')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} -- bbox_stack {bbox_stack.shape}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} -- bbox       {bbox.shape}')
     bbox_stack_list[region_id] = np.append(bbox_stack, bbox, 0)
-    log.debug(f'-- box_stack_list-appended: {region_id} {bbox_stack_list[region_id].shape}')
-    log.debug(f'Stack BEFORE delete:  {bbox_stack_list[region_id]}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} -- box_stack_list-appended: {region_id} {bbox_stack_list[region_id].shape}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} Stack BEFORE delete: {bbox_stack_list[region_id].tolist()}')
 
-    log.debug(f'Slice: {objects_to_remove}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} Slice: {objects_to_remove}')
     bbox_stack_list[region_id] = np.delete(bbox_stack_list[region_id], slice(0, objects_to_remove), 0)
 
-    log.debug(f'Match Counts: {match_counts}')
-    log.debug(f'Stack After:  {bbox_stack_list[region_id]}')
-    log.debug(f'Push List:    {bbox_push_list[region_id]}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} Match Counts: {match_counts}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} Stack After:  {bbox_stack_list[region_id].tolist()}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} Push List:    {bbox_push_list[region_id]}')
 
-    log.debug(f'-- match counts: {match_counts}')
+    log.debug(f'id new -- cam#: {camera_id} reg# {region_id} {image_time} -- match counts: {match_counts}')
     return match_counts
 
 
 # identify new & old (repetitive) detections
 # this is a per camera-region function
 # - this is ONLY called if there were predictions
-def identify_new_detections(bbox_iou_threshold, camera_id, region_id, bbox_array, bbox_stack_list, bbox_push_list):
+def identify_new_detections(image_time, bbox_iou_threshold, camera_id, region_id, bbox_array, bbox_stack_list, bbox_push_list):
     # check detected objects against the stack
     new_objects = 0
     dup_objects = 0
 
-    match_counts = calc_iou_with_previous(bbox_iou_threshold, region_id, bbox_stack_list, bbox_push_list, bbox_array)
+    match_counts = calc_iou_with_previous(image_time, bbox_iou_threshold, camera_id, region_id, bbox_stack_list, bbox_push_list, bbox_array)
     for match_count in match_counts:
         if match_count >= 3:
             dup_objects = dup_objects + 1

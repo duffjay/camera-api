@@ -12,66 +12,88 @@ import logging
 
 from PIL import Image
 
+import settings
+
 log = logging.getLogger(__name__)
 
-def automatic_brightness_and_contrast(image, clip_hist_percent=25):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # Calculate grayscale histogram
-    hist = cv2.calcHist([gray],[0],None,[256],[0,256])
-    hist_size = len(hist)
+def automatic_brightness_and_contrast(image, camera_id, region_id, is_color):
+    if is_color == 1:
+        clip_hist_percent = settings.color_image_auto_correct_clips_array[camera_id, region_id]
+    else:
+        clip_hist_percent = settings.gray_image_auto_correct_clips_array[camera_id, region_id]
 
-    # Calculate cumulative distribution from the histogram
-    accumulator = []
-    accumulator.append(float(hist[0]))
-    for index in range(1, hist_size):
-        accumulator.append(accumulator[index -1] + float(hist[index]))
+    
+    if clip_hist_percent > 0.0:
+        try:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # Locate points to clip
-    maximum = accumulator[-1]
-    clip_hist_percent *= (maximum/100.0)
-    clip_hist_percent /= 2.0
+            # Calculate grayscale histogram
+            hist = cv2.calcHist([gray],[0],None,[256],[0,256])
+            hist_size = len(hist)
+            # Calculate cumulative distribution from the histogram
+            accumulator = []
+            accumulator.append(float(hist[0]))
+            for index in range(1, hist_size):
+                accumulator.append(accumulator[index -1] + float(hist[index]))
 
-    # Locate left cut
-    minimum_gray = 0
-    while accumulator[minimum_gray] < clip_hist_percent:
-        minimum_gray += 1
+            # Locate points to clip
+            maximum = accumulator[-1]
+            clip_hist_percent *= (maximum/100.0)
+            clip_hist_percent /= 2.0
 
-    # Locate right cut
-    maximum_gray = hist_size -1
-    while accumulator[maximum_gray] >= (maximum - clip_hist_percent):
-        maximum_gray -= 1
+            # Locate left cut
+            minimum_gray = 0
+            while accumulator[minimum_gray] < clip_hist_percent:
+                minimum_gray += 1
 
-    # Calculate alpha and beta values
-    alpha = 255 / (maximum_gray - minimum_gray)
-    beta = -minimum_gray * alpha
+            # Locate right cut
+            maximum_gray = hist_size -1
+            while accumulator[maximum_gray] >= (maximum - clip_hist_percent):
+                maximum_gray -= 1
+            gray_range = maximum_gray - minimum_gray
 
-    '''
-    # Calculate new histogram with desired range and show histogram 
-    new_hist = cv2.calcHist([gray],[0],None,[256],[minimum_gray,maximum_gray])
-    plt.plot(hist)
-    plt.plot(new_hist)
-    plt.xlim([0,256])
-    plt.show()
-    '''
+            # Calculate alpha and beta values
+            if (maximum_gray - minimum_gray) == 0:
+                log.warning('camera-util/automatic_brihtness_and_contrast warning')
+                log.warning('-- divide by zero (max-min) = 0')
+                auto_result = image
+                alpha = 0
+                beta = 0
+            else:
+                alpha = 255 / (maximum_gray - minimum_gray)
+                beta = -minimum_gray * alpha
+                '''
+                # Calculate new histogram with desired range and show histogram 
+                new_hist = cv2.calcHist([gray],[0],None,[256],[minimum_gray,maximum_gray])
+                plt.plot(hist)
+                plt.plot(new_hist)
+                plt.xlim([0,256])
+                plt.show()
+                '''
+                auto_result = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+            log.debug(
+                f'camera-util/auto_bright_cont - is_color: {is_color}  clip hist % {clip_hist_percent:02.2f}'\
+                f'  hist size: {hist_size}  max/max: {maximum_gray}/{minimum_gray} {gray_range}  a/b: {alpha:02.2f}/{beta:02.2f}')
 
-    auto_result = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+        except Exception as e:
+            log.error("camera-util/automatic_brihtness_and_contrast error")
+            log.error(f"-- eneral xception: {e}")
+            auto_result = image
+            alpha = 0
+            beta = 0
+    else:
+        auto_result = image
+        alpha = 0
+        beta = 0
+
     return (auto_result, alpha, beta)
 
-# DEPRECATED
-def DEP_get_camera_config(config, camera_num):
-    '''
-    given the config JSON and a camera number, 
-    return the config 
-    '''
-    camera_config = config['camera'][camera_num]
-    return camera_config
-
 # is the image color?
-#  return g == grayscale
-#         c == color
+#  return 0 == grayscale
+#         1 == color
 # append on the file names
-def is_color_gc(image):
+def get_color(image):
     height, width, channels = image.shape
     # grab a center section 40x40
     size = 40
@@ -89,9 +111,9 @@ def is_color_gc(image):
     diff_gb = np.sum(np.absolute(g - b))
     # use a threshold
     if (diff_rg + diff_gb) > 0.10:
-        result = 'c'
+        result = 1
     else:
-        result = 'g'
+        result = 0
 
     return result 
 
@@ -103,6 +125,7 @@ def get_camera_sleep_factor(config, camera_id):
     camera_config_list = config['camera']
     camera_config = camera_config_list[camera_id]
     sleep_factor = int(camera_config['sleep_factor'])
+    log.debug(f'get sleep factor - camera_id: {camera_id}  sleep_factor: {sleep_factor}')
     return sleep_factor
 
 # sets up memory structures for ALL  cameras
@@ -131,7 +154,7 @@ def config_camara_data(config):
         dedup_depth = camera_config['dedup_depth']
         bbox_stack_list = []
         bbox_push_list = []
-        for i, region in enumerate(regions_config):
+        for region_id, region in enumerate(regions_config):
             bbox_stack_list.append(np.zeros((dedup_depth,4)))
             # need a list of object count pushed to the stack
             # we are pushing 1 bbox == object for dedup_DEPTH
@@ -140,6 +163,10 @@ def config_camara_data(config):
             for i in range(dedup_depth):
                 region_push_list.append(1)
             bbox_push_list.append(region_push_list)
+            # debug log
+            log.debug(f'config_camera_data - cam#{camera_id} reg#{region_id}')
+            log.debug(f'-- bbox_stack_list: {bbox_stack_list}')
+            log.debug(f'-- bbox_push_list:  {bbox_push_list}')
         bbox_stack_lists.append(bbox_stack_list)
         bbox_push_lists.append(bbox_push_list)
 
@@ -192,37 +219,11 @@ def append_crop_region(regions, crop_corner, crop_size):
 
     return regions
 
-# Deprecate - reolink2tflite only
-def DEL_config_camera_regions(camera_config):
-    # 
-    # - - Camera Regions - - - 
-    #     should be in JSON as [xmin, ymin, height, width]
 
-    dedup_depth = camera_config['dedup_depth']
-    regions_config = camera_config['regions']
-
-
-    regions = []
-    bbox_stack_list = []
-    bbox_push_list = []
-    for i, region in enumerate(regions_config):
-        append_crop_region(regions, (region[0], region[1]), (region[2], region[3]))
-        print ("Crop {} Dimensions: corner: {}:{}  size: {}:{}".format(i, region[0], region[1], region[2], region[3]))
-        bbox_stack_list.append(np.zeros((dedup_depth,4)))
-        # need a list of object count pushed to the stack
-        # we are pushing 1 bbox == object for dedup_DEPTH
-        # so that is dedup_depth x 1
-        region_push_list = []
-        for i in range(dedup_depth):
-            region_push_list.append(1)
-        bbox_push_list.append(region_push_list)
-
-    return regions, bbox_stack_list, bbox_push_list
-
-def extract_regions(config, image):
+def extract_regions(config, camera_id, image, is_color):
     regions_config = config['regions']
 
-    for i, region in enumerate(regions_config):
+    for region_id, region in enumerate(regions_config):
         ymin = region[0]
         xmin = region[1]
         ymax = ymin + region[2]
@@ -236,12 +237,13 @@ def extract_regions(config, image):
         # resize image
         resized_image = cv2.resize(regional_image, dim, interpolation = cv2.INTER_AREA)
         #  auto correct (but not the raw full image - its already correct)
-        if i > 0:
-            resized_image, alpha, beta = automatic_brightness_and_contrast(resized_image, clip_hist_percent=25)
+        if region_id > 0:
+            clip_hist_percent = 10
+            resized_image, alpha, beta = automatic_brightness_and_contrast(resized_image, camera_id, region_id, is_color)
         # reshape to (1,480,640,3)
         np_image = resized_image.reshape((1,height,width,3))
-
-        if i == 0:
+        # build the array of images (as a numpy array)
+        if region_id == 0:
             np_images = np_image
         else:
             np_images = np.append(np_images, np_image, 0)
@@ -253,7 +255,7 @@ def extract_regions(config, image):
 #   get frame
 #   extract regions
 #   return numpy array [regions, 480, 640, 3]
-def get_camera_regions(config):
+def get_camera_regions(camera_id, config):
     start = time.perf_counter()
     
     name = config['name']
@@ -267,12 +269,14 @@ def get_camera_regions(config):
     
     # if the image exists..
     if full_image is not None:
+        is_color = get_color(full_image)
         # rotate the image
         rot_full_image = imutils.rotate(full_image, rotation_angle)
         # print ("Camera: {} {} -- Frame Captured".format(name, start))
-        np_images = extract_regions(config, rot_full_image)
+        np_images = extract_regions(config, camera_id, rot_full_image, is_color)
     else:
         log.warning(f'Camera: {name} {start} -- snapshot timeout')
         np_images = None
+        is_color = 0
     
-    return name, np_images
+    return name, np_images, is_color

@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import re
 import cv2
 import threading
 import logging
@@ -42,20 +43,22 @@ def main():
     config_filename = sys.argv[1]   # 0 based
 
     # logging
-    logger = logging.getLogger('security_application')
-    logger.setLevel(logging.INFO)
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
     # file handler
     logname = "security_app.log"
     handler = TimedRotatingFileHandler(logname, when="midnight", interval=1)
     handler.suffix = "%Y%m%d"
+    handler.extMatch = re.compile(r"^\d{8}$")
     # formatter
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    handler.setFormatter
+    handler.setFormatter(formatter)
     logger.addHandler(handler)
 
     # init the variables in security settings
     # - init only in main()
     # https://stackoverflow.com/questions/13034496/using-global-variables-between-files
+    logger.debug(f'main - settings.init() - - setting global variables')
     settings.init(config_filename)
 
     # configure the model
@@ -76,6 +79,7 @@ def main():
     #     watch the queue size as it runs
     consumer_count = 24
     for i in range(consumer_count):
+        logger.debug(f'Starting Consumer: {i}')
         thread = threading.Thread(target=image_consumer.image_consumer, 
             args=(i, 
                 sess, tensor_dict, image_tensor, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict))
@@ -105,22 +109,9 @@ def main():
     # print ("main() sleep timed out")
     # run_state = False
 
-    cv2.destroyAllWindows()
     logger.info("main() exit")
 
 
-
-        # camera_name, np_images = camera_util.get_camera_regions(camera_config)
-        # if np_images is not None:
-        #     print ("np_images:", np_images.shape)
-        #     for i, image in enumerate(np_images):
-        #         print ("image {}  shape {}".format(i, image.shape))
-
-        #         window_name = "{}-{}".format(camera_name, i)
-        #         cv2.imshow(window_name,image)
-        #     cv2.waitKey(0)
-        # else:
-        #     print ("nothing returned")
 
 if __name__ == '__main__':
     main()

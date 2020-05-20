@@ -14,7 +14,7 @@ image_list = [
     ]
 
 
-def automatic_brightness_and_contrast(image, clip_hist_percent=35):
+def automatic_brightness_and_contrast(image, clip_hist_percent=10):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Calculate grayscale histogram

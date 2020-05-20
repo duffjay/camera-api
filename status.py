@@ -1,17 +1,50 @@
+import logging
 
-class Garage_status:
-    def __init__(self, door_status, car_present, person_present, light_status):
+from inference import RegionDetection
+from inference import ModelInference
+from garage_status import GarageStatus
 
-    def update_status(detection):
-        self.door_status = "open"
-        return
+log = logging.getLogger(__name__)
 
+# important assumptions
+
+cam_garage_outdoor = 0  # ~ 1 sec camera
+cam_garage_indoor = 2 
+cam_front_porch = 1
+cam_back_porch = 3
+cam_back_yard = 4
+cam_side_yard = 5
+
+
+
+# singleton - Status
+# - we want only one object/instance of this class
+# TODO
+# - faces recognized
 
 class Status:
-    def __init__(self, time_stamp, garage_status, back_yard_status):
-        self.time_stamp = time_stamp
-        self.garage_status = garage_status
-        self.back_yard_status = back_yard_status
-        
+    __instance = None
+    def __new__(cls, timestamp):
+        if Status.__instance is None:
+            print ("new object")
+            Status.__instance = object.__new__(cls)
+        else:
+            print ("reused object")
+        Status.__instance.timestamp = timestamp
+        Status.__instance.garage_status = GarageStatus("unk", "unk", "unk", "unk")
+        return Status.__instance
 
-    def update_garage_door_status(region_detection):
+    def __str__(self):
+        status_string = f'Status Object- time: {self.timestamp}\n{self.garage_status}'
+        return status_string
+
+    def update_from_detection(self, detection):
+
+        # garaage indoor
+        if detection.camera_id == 2:
+            # 
+            self.garageStatus = self.garage_status.update_from_detection(detection)
+
+        return self 
+
+

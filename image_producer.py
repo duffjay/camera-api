@@ -29,19 +29,21 @@ def compute_sleep_time(frame_elapsed_time, qsize, camera_id):
     # can't be a negative value
     if sleep_time < 0.0:
         sleep_time = 0.0
+    
+    log.debug(f'compute_sleep_time - camera_id: {camera_id}  frame_elapsed: {frame_elapsed_time}  qsize: {qsize}  sleep_time: {sleep_time}')
     return sleep_time
 
 def image_producer(camera_id, camera_config, camera_snapshot_times):
     
     while True:
         start_time = time.perf_counter()
-        camera_name, np_images = camera_util.get_camera_regions(camera_config)
+        camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config)
         snapshot_elapsed =  time.perf_counter() - camera_snapshot_times[camera_id]      # elapsed time between snapshots
         camera_snapshot_times[camera_id] = time.perf_counter()                          # update the time == start time for the next snapshot
         # pushes to the stack if there was a frame captured
         if np_images is not None:
             image_time = int(time.time() * 10)  # multiply time x 10 to pick up 10ths
-            settings.imageQueue.put((camera_id, camera_name, image_time, np_images))
+            settings.imageQueue.put((camera_id, camera_name, image_time, np_images, is_color))
             with settings.safe_print:
                 log_msg = "  IMAGE-PRODUCER:>>{} np_images: {}  {:02.2f} secs".format(camera_name, np_images.shape, snapshot_elapsed)
                 log.info(log_msg)
