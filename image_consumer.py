@@ -122,7 +122,7 @@ def image_consumer(consumer_id,
                         new_objects, dup_objects = tensorflow_util.identify_new_detections(image_time,
                             settings.iou_threshold, camera_id, region_id, inf.bbox_array, bbox_stack_lists[camera_id], bbox_push_lists[camera_id])
                     # create a detection & update home_status
-                    det = inference.RegionDetection(camera_id, region_id, new_objects, dup_objects, inf)
+                    det = inference.RegionDetection(image_time, camera_id, region_id, new_objects, dup_objects, inf)
                     with settings.safe_status_update:
                         settings.home_status.update_from_detection(det)
                 

@@ -34,6 +34,7 @@ import rekognition_util
 import image_producer
 import image_consumer
 import face_consumer
+import stack_shift
 
 import settings
 
@@ -44,7 +45,7 @@ def main():
 
     # logging
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     # file handler
     logname = "security_app.log"
     handler = TimedRotatingFileHandler(logname, when="midnight", interval=1)
@@ -103,6 +104,13 @@ def main():
                 args=(i,))
             thread.daemon = True
             thread.start()
+
+    #   S T A C K    S H I F T
+    #   - shift the history stack as function of time
+    #   settings.home_status == the singleton, overall status object
+    thread = threading.Thread(target=stack_shift.stack_shift, args=(settings.home_status,))
+    thread.daemon = True
+    thread.start()
 
 
     # time.sleep(240)

@@ -48,6 +48,24 @@ def angle(target, actual):
 
 
 # C L A S S
+#
+# RegionDetection (parent)
+# -- ModelInference (child)
+
+
+class RegionDetection():
+    def __init__(self, image_time, camera_id, region_id, new_objects, dup_objects, model_inference):
+        self.image_time = image_time  # time * 10
+        self.camera_id = camera_id
+        self.region_id = region_id
+        self.new_objects = new_objects
+        self.dup_objects = dup_objects
+        self.model_inference = model_inference
+    def __str__(self):
+        region_string = f'RegionDection - camera: {self.camera_id}  region: {self.region_id}  new: {self.new_objects}  dup: {self.dup_objects}\n--{self.model_inference}'
+        return region_string
+
+
 class ModelInference():
     def __init__(self, class_array, prob_array, bbox_array):
         self.class_array = class_array
@@ -63,15 +81,3 @@ class ModelInference():
         -- centers: {self.bbox_center_array}\n\
         -- areas:   {self.bbox_area_array}  '
         return inference_string
-
-class RegionDetection():
-    def __init__(self, camera_id, region_id, new_objects, dup_objects, model_inference):
-        self.camera_id = camera_id
-        self.region_id = region_id
-        self.new_objects = new_objects
-        self.dup_objects = dup_objects
-        self.model_inference = model_inference
-    def __str__(self):
-        region_string = f'RegionDection - camera: {self.camera_id}  region: {self.region_id}  new: {self.new_objects}  dup: {self.dup_objects}\n--{self.model_inference}'
-        return region_string
-
