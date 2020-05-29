@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import logging
 
 from math import atan2, degrees
 
@@ -15,7 +16,7 @@ sys.path.append(slim)
 
 from object_detection.utils.np_box_ops import area
 
-
+log = logging.getLogger(__name__)
 
 # HELPER FUNCTIONS
 
@@ -33,9 +34,9 @@ def radius(target, actual):
     return np.linalg.norm(target - actual)
 def angle(target, actual):
     '''
-    12:00 == -90
+    12:00 ==  90
      3:00 == 180
-     6:00 ==  90
+     6:00 ==  -90
      9:00 ==   0 
 
     '''
@@ -44,6 +45,41 @@ def angle(target, actual):
     return rad, deg
 
 
+def is_area_valid(region_id, area_limits, area):
+    '''
+    is the area reasonable?
+    - could be bad inference
+    - could be door in motion
+    '''
+    valid = False
+    # area of gmark detection within min max for given region
+    if area >= area_limits[0] and area <= area_limits[1]:
+        valid = True
+    return valid
+
+def is_on_target(target_center, detection_center, distance_limit, min_angle, max_angle):
+    log.info(f'GarageStatus.is_on_target -- target:    ({target_center[0]:02.2f}, {target_center[1]:02.2f})')
+    log.info(f'GarageStatus.is_on_target -- detection: ({detection_center[0]:02.2f}, {detection_center[1]:02.2f})'
+        f' dist limit: {distance_limit}  {min_angle}  {max_angle} ')
+    # defaults
+    within_radius = False
+    on_travel_path = False
+    # now check radius
+    # - within_dist == within reasonable distance of the target
+    radius_from_target = radius(target_center, detection_center)
+    if radius_from_target < distance_limit:
+        within_radius = True
+    # now check angle
+    # - primarily relevant at farther radius
+    # - discard radians, keep  the angle in degrees
+    _, angle_from_target = angle(target_center, detection_center)
+    if angle_from_target >= min_angle and angle_from_target <= max_angle:
+        on_travel_path = True
+
+    log.info(f'GarageStatus.is_on_target -- RESULT: ' 
+        f' rad: {radius_from_target:02.2f}  ang: {angle_from_target:02.2f}'
+        f' within_radius: {within_radius}  on_travel_path: {on_travel_path}')
+    return within_radius, on_travel_path
 
 
 

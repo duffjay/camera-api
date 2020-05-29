@@ -15,7 +15,7 @@ cam_back_porch = 3
 cam_back_yard = 4
 cam_side_yard = 5
 
-
+unknown = -1
 
 # singleton - Status
 # - we want only one object/instance of this class
@@ -31,7 +31,7 @@ class Status:
         else:
             print ("reused object")
         Status.__instance.timestamp = timestamp
-        Status.__instance.garage_status = GarageStatus("unk", "unk", "unk", "unk")
+        Status.__instance.garage_status = GarageStatus(unknown, unknown, unknown, unknown)
         return Status.__instance
 
     def __str__(self):

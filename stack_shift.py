@@ -18,6 +18,9 @@ def shift(stack):
     stack == original array
     don't forget timestamp in stack[0]
     '''
+
+    log.info(f'time_shift -- BEFORE history: {stack.tolist()[:10]} ')
+
     # num == how much to shift
     timestamp = time.time() * 10
     base_time = stack[0]
@@ -32,28 +35,32 @@ def shift(stack):
     result = np.empty_like(stack)       # same as stack - but empty
     if shift_increment > 0:
         result[0] = timestamp                           # write time in slot 0
-        result[1:shift_increment] = fill_value          # fill the new part, start at pos 1
+        fill_start = 1                                  # 1 because you skip the timestamp
+        fill_stop = fill_start + shift_increment        # you have to account for the start not equal 0 
+        result[fill_start:fill_stop] = fill_value       # fill the new part, start at pos 1
         # paste positon = [0] + increment
         start_pos = shift_increment + 1                 # start shift (not forgetting timestamp in pos 0) 
         result[start_pos:] = stack[1:-shift_increment]  # copy original in
     else:
         result[:] = stack
         result[0] = timestamp
+
+    log.info(f'time_shift --  AFTER history: {result.tolist()[:10]} ')
     return result
 
 
 def stack_shift(home_status):
     while True:
         timestamp = time.time() * 10
-        log.info(f'time_shift -- BEFORE garage door history: {home_status.garage_status.door_status_history.tolist()[:10]} ')
-
-
 
         # with the lock
         with settings.safe_status_update:
-            home_status.garage_status.door_status_history = shift(home_status.garage_status.door_status_history)
+            home_status.garage_status.door_r0_history = shift(home_status.garage_status.door_r0_history)
+            home_status.garage_status.door_r1_history = shift(home_status.garage_status.door_r1_history)
+        
+            home_status.garage_status.car_mark_r0_history = shift(home_status.garage_status.car_mark_r0_history)
+            home_status.garage_status.car_mark_r1_history = shift(home_status.garage_status.car_mark_r1_history)
 
-        log.info(f'time_shift --  AFTER garage door history: {home_status.garage_status.door_status_history.tolist()[:10]} ')
         elapsed = (time.time() * 10) - timestamp
         if elapsed < 1.0:
             sleep_time = 1.0 - elapsed
