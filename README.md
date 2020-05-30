@@ -1,11 +1,11 @@
 # camera-api
 RESTful API for Amcrest cameras
 
-## Python 3.7
+## Python 3.6
 conda install pip # might have an issue with conda
 
 pip install flask  
-pip install opencv-python
+pip install opencv-python  
 pip install pillow  
 pip install bs4  
 pip install lxml  

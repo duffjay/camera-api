@@ -1,8 +1,12 @@
 import os
 import sys
 import time
+import re
 import cv2
 import threading
+import logging
+from logging.handlers import TimedRotatingFileHandler
+
 
 import numpy as np
 import traceback
@@ -30,6 +34,7 @@ import rekognition_util
 import image_producer
 import image_consumer
 import face_consumer
+import stack_shift
 
 import settings
 
@@ -38,9 +43,23 @@ def main():
     # args
     config_filename = sys.argv[1]   # 0 based
 
+    # logging
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    # file handler
+    logname = "security_app.log"
+    handler = TimedRotatingFileHandler(logname, when="midnight", interval=1)
+    handler.suffix = "%Y%m%d"
+    handler.extMatch = re.compile(r"^\d{8}$")
+    # formatter
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
     # init the variables in security settings
     # - init only in main()
     # https://stackoverflow.com/questions/13034496/using-global-variables-between-files
+    logger.debug(f'main - settings.init() - - setting global variables')
     settings.init(config_filename)
 
     # configure the model
@@ -50,8 +69,8 @@ def main():
     # camera config
     # - includes getting the data structures to track detections
     camera_config_list, camera_count, camera_snapshot_times, bbox_stack_lists, bbox_push_lists = camera_util.config_camara_data(settings.config)
-    print ("Camera Count:", camera_count)
-    print ("Facial Detection Enabled", settings.facial_detection_enabled)
+    logger.info("Camera Count: %d", camera_count)
+    logger.info("Facial Detection Enabled: %s", settings.facial_detection_enabled)
 
     #   I M A G E    C O N S U M E R S
     #   == face producers
@@ -61,6 +80,7 @@ def main():
     #     watch the queue size as it runs
     consumer_count = 24
     for i in range(consumer_count):
+        logger.debug(f'Starting Consumer: {i}')
         thread = threading.Thread(target=image_consumer.image_consumer, 
             args=(i, 
                 sess, tensor_dict, image_tensor, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict))
@@ -85,27 +105,21 @@ def main():
             thread.daemon = True
             thread.start()
 
+    #   S T A C K    S H I F T
+    #   - shift the history stack as function of time
+    #   settings.home_status == the singleton, overall status object
+    thread = threading.Thread(target=stack_shift.stack_shift, args=(settings.home_status,))
+    thread.daemon = True
+    thread.start()
+
 
     # time.sleep(240)
     # print ("main() sleep timed out")
     # run_state = False
 
-    cv2.destroyAllWindows()
-    print ("main() exit")
+    logger.info("main() exit")
 
 
-
-        # camera_name, np_images = camera_util.get_camera_regions(camera_config)
-        # if np_images is not None:
-        #     print ("np_images:", np_images.shape)
-        #     for i, image in enumerate(np_images):
-        #         print ("image {}  shape {}".format(i, image.shape))
-
-        #         window_name = "{}-{}".format(camera_name, i)
-        #         cv2.imshow(window_name,image)
-        #     cv2.waitKey(0)
-        # else:
-        #     print ("nothing returned")
 
 if __name__ == '__main__':
     main()

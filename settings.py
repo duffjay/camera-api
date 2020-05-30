@@ -1,10 +1,15 @@
 import os
 import sys
+import time
 import threading
 import queue
+import numpy as np
 
 import gen_util
 import aws_util
+
+# for tracking status
+import status
 
 cwd = os.getcwd()
 
@@ -36,14 +41,15 @@ def init(config_filename):
     imageQueue = queue.Queue()
     faceQueue = queue.Queue()
 
-
-    print ("security_settings:  Setting Globals")
     global run_state
     run_state = True
 
     global safe_print, safe_imshow
     safe_print = threading.Lock()
     safe_imshow = threading.Lock()
+
+    global safe_stack_update
+    safe_stack_update = threading.Lock()
 
     # AWS
     global aws_session, aws_profile
@@ -63,3 +69,34 @@ def init(config_filename):
     # new object IoU Threshold
     global iou_threshold
     iou_threshold = 0.8
+
+    # universal sleep factor
+    # - base multiplier to make the cameras sleep
+    #   increase this if the imageQueue gets too big
+    global universal_sleep_factor
+    universal_sleep_factor = 0.01
+
+    # image auto correct
+    # matrix
+    # - rows = camera
+    # - columns = regions
+    # 8 regions max
+    # 0.0 == don't autocorrect
+    global color_image_auto_correct_clips_array
+    color_clip_list = config["color_image_auto_correct_clips"]
+    color_image_auto_correct_clips_array = np.asarray(color_clip_list)
+
+    global gray_image_auto_correct_clips_array
+    gray_clip_list = config["gray_image_auto_correct_clips"]
+    gray_image_auto_correct_clips_array = np.asarray(gray_clip_list)
+
+   
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+    # S T A T U S    T R A C K I N G
+    #
+
+    global safe_status_update
+    safe_status_update = threading.Lock()
+    
+    global home_status
+    home_status = status.Status(time.time())
