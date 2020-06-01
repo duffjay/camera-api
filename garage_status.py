@@ -17,6 +17,8 @@ log = logging.getLogger(__name__)
 
 # important assumptions
 unknown = -1
+history_depth = 120     # 1/2 second increments, depth of stack
+
 cam_garage_outdoor = 0  # ~ 1 sec camera
 cam_garage_indoor = 2 
 
@@ -55,7 +57,17 @@ garage_car_absent = 0
 garage_car_moving = 5
 garage_car_present = 10
 
-history_depth = 120     # 1/2 second increments, depth of stack
+# car present IN the garage
+# only 1 region, but use same data structure
+#    index in the list == region_id
+car_class_id = 3        # get this from the label protobuf in /model
+car_inside_areas = [[0.35, 0.41]]
+car_inside_centers = [[0.69, 0.317]]
+car_inside_dist_limits = [[0.2]]
+car_inside_absent = 0   # not used - we can be sure, maybe just not detected
+car_inside_moving = 5
+car_inside_present = 10
+
 
 # common helpers
 
@@ -230,6 +242,62 @@ def get_gmark_status(garage_status, region_id, det):
             
     return door_status, car_status
 
+# - - - - - - - - - - - - - car present in garage - - - - - - - - - - - - - - 
+
+
+
+def get_car_inside_status(garage_status, region_id, det):
+    '''
+    don't confuse this car_status with the car_gmark status
+    - car gmark - if you can see it, tells you definitely that a car is NOT present
+                - if you don't see it, PROBABLY a car is blocking it but you don't know for sure
+    - car status - this means you detect a car in the parked position
+                 - or pulling out
+
+    Only checking the full resultion (region 0) region
+
+    you could have a car in view (through an open door)
+
+    '''
+    car_status = unknown
+
+    # get indexes = gmark
+    log.debug(f'GarageStatus.get_car_insidestatus.np.where --- {det.model_inference.class_array.tolist()}')
+    car_array = np.where(det.model_inference.class_array == car_class_id )[0]           # results for single axis == 0
+                                                                                        # returns array like [2,3]
+    
+    # should only have 1 - you could possibly have a shadow/duplicate detection
+    for idx in car_array:
+        car_status = unknown                                    # reset between iteration
+        center = det.model_inference.bbox_center_array[idx]
+        area = det.model_inference.bbox_area_array[idx]
+        area_valid = is_area_valid(region_id, car_inside_areas[region_id], area)
+        # only if area is value
+        if area_valid == True:
+            # is this a car in the parked position? 
+            # - get the distance from true center
+            # - get the angle from true center
+            within_radius, on_travel_path = is_on_target(car_inside_centers[region_id], center, 
+                car_inside_dist_limits[region_id], 80, 100)
+
+            # on target
+            if within_radius == True:
+                car_status = car_inside_present
+            # not on target (and you already check valid area)
+            # - but is it moving within path?
+            else:
+                if on_travel_path == True:
+                    car_status = car_inside_moving
+
+        log.info(f'GarageStatus.update car_inside: idx = {idx} -- {det.image_time} {det.camera_id} {det.region_id} center: {center}  area: {area}')
+        log.info(f'GarageStatus.update car_inside: idx = {idx} -- {det.image_time} area_valid: {area_valid}  within radius: {within_radius}'
+            f'  on path: {on_travel_path}  car inside status: {car_status}')
+
+        if car_status >= 0:
+                update_history(garage_status.car_inside_r0_history, det.image_time, car_status, 'r0:car_inside')
+
+    return car_status
+
 class GarageStatus:
     '''
     history == 121
@@ -257,6 +325,8 @@ class GarageStatus:
         self.car_mark_r1_history[0] = int(time.time() * 10)
         # -- person
         # -- car present - in the garage
+        self.car_inside_r0_history = np.full((history_depth), -1, dtype=int)
+        self.car_inside_r0_history[0] = int(time.time() * 10)
 
         return
     def __str__(self):
@@ -279,16 +349,22 @@ class GarageStatus:
         if det.region_id == cam_reg_garage_indoor_left_door or \
             det.region_id == cam_reg_garage_indoor_full:
             log.info(f'GarageStatus.update_from_detection -- check gmarks')
-            self.door_status, self.car_present = get_gmark_status(self, det.region_id, det)
+            get_gmark_status(self, det.region_id, det)
 
             log.info(f'GarageStatus door (r0) history: {self.door_r0_history.tolist()[:20]}')
             log.info(f'GarageStatus door (r1) history: {self.door_r1_history.tolist()[:20]}')
             
             log.info(f'GarageStatus car mark (r0) history: {self.car_mark_r0_history.tolist()[:20]}')
             log.info(f'GarageStatus car mark (r1) history: {self.car_mark_r1_history.tolist()[:20]}')
-        return
+        
 
         # regions w/ (actual car) - region 0 - full only
+        if det.region_id == cam_reg_garage_indoor_full:
+            log.info(f'GarageStatus.update_from_detection -- check car present indoor -- (full) region 0 only')
+            get_car_inside_status(self, det.region_id, det)
+            log.info(f'GarageStatus car inside (r0) history: {self.car_inside_r0_history.tolist()[:20]}')
 
 
         # regions w/ people
+
+        return        

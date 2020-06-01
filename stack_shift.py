@@ -19,13 +19,13 @@ def shift(stack):
     don't forget timestamp in stack[0]
     '''
 
-    log.info(f'time_shift -- BEFORE history: {stack.tolist()[:10]} ')
+    log.debug(f'time_shift -- BEFORE history: {stack.tolist()[:10]} ')
 
     # num == how much to shift
     timestamp = time.time() * 10
     base_time = stack[0]
     shift_increment = int((timestamp - base_time) / 10)
-    log.info(f'time_shift -- shift - time: {timestamp}  base: {base_time}  increment:  {shift_increment}')
+    log.debug(f'time_shift -- shift - time: {timestamp}  base: {base_time}  increment:  {shift_increment}')
 
     fill_value = -1
 
@@ -45,7 +45,7 @@ def shift(stack):
         result[:] = stack
         result[0] = timestamp
 
-    log.info(f'time_shift --  AFTER history: {result.tolist()[:10]} ')
+    log.debug(f'time_shift --  AFTER history: {result.tolist()[:10]} ')
     return result
 
 
@@ -61,16 +61,18 @@ def stack_shift(home_status):
             home_status.garage_status.car_mark_r0_history = shift(home_status.garage_status.car_mark_r0_history)
             home_status.garage_status.car_mark_r1_history = shift(home_status.garage_status.car_mark_r1_history)
 
+            home_status.garage_status.car_inside_r0_history = shift(home_status.garage_status.car_inside_r0_history)
+
         elapsed = (time.time() * 10) - timestamp
         if elapsed < 1.0:
             sleep_time = 1.0 - elapsed
         else:
             sleep_time = 0.0
 
-        log.info(f'time_shift -- sleep:  {time.time()}  {timestamp}  elapsed: {elapsed} sleep: {sleep_time}')
+        log.debug(f'time_shift -- sleep:  {time.time()}  {timestamp}  elapsed: {elapsed} sleep: {sleep_time}')
         time.sleep(sleep_time)
 
         # stop?
         if settings.run_state == False:
-            log.info(f'******* stack_shift thread shutdown *******')
+            log.debug(f'******* stack_shift thread shutdown *******')
             break
