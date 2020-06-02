@@ -37,8 +37,8 @@ gmark_class_id = 35
 # gmark -- only relevent in regions 0 & 1
 # areas - [(reg0_min, reg0_max), (reg1_min, reg1_max)]
 # ** these are good for door status and car status gmarks
-gmark_areas = [[0.006, 0.012], [0.027, 0.035]]
-gmark_dist_limits = [0.15, 0.2]
+gmark_areas = [[0.006, 0.02], [0.027, 0.045]]               # area gets bigger while traveling up
+gmark_dist_limits = [0.10, 0.2]
 
 # region specific
 # regions = (y, x) - normalized
@@ -60,10 +60,11 @@ garage_car_present = 10
 # car present IN the garage
 # only 1 region, but use same data structure
 #    index in the list == region_id
-car_class_id = 3        # get this from the label protobuf in /model
-car_inside_areas = [[0.35, 0.41]]
+car_class_id = 3                        # get this from the label protobuf in /model
+car_inside_areas = [[0.1, 0.41]]        # min/max;  area gets smaller FAST as you pull out
+                                        # 2' = 0.38,  4' = 0.26,  6' = 0.17  8' = 0.16  10' = 0.11
 car_inside_centers = [[0.69, 0.317]]
-car_inside_dist_limits = [[0.2]]
+car_inside_dist_limits = [[0.05]]       # angles are hard coded below
 car_inside_absent = 0   # not used - we can be sure, maybe just not detected
 car_inside_moving = 5
 car_inside_present = 10
@@ -105,7 +106,7 @@ def is_gmark_door(region_id, detection_center):
     # - get the distance from true center
     # - get the angle from true center
     within_radius, on_travel_path = is_on_target(gmark_door_centers[region_id], detection_center, 
-        gmark_dist_limits[region_id], 80, 100)
+        gmark_dist_limits[region_id], 75, 100)
 
     # on target
     if within_radius == True:
@@ -139,7 +140,7 @@ def is_gmark_car(region_id, detection_center):
     # - get the distance from true center
     # - get the angle from true center
     within_radius, on_travel_path = is_on_target(gmark_car_centers[region_id], detection_center, 
-        gmark_dist_limits[region_id], 80, 100)
+        gmark_dist_limits[region_id], 75, 100)
 
     # on target
     if within_radius == True:
@@ -269,6 +270,9 @@ def get_car_inside_status(garage_status, region_id, det):
     # should only have 1 - you could possibly have a shadow/duplicate detection
     for idx in car_array:
         car_status = unknown                                    # reset between iteration
+        within_radius = unknown
+        on_travel_path = unknown
+
         center = det.model_inference.bbox_center_array[idx]
         area = det.model_inference.bbox_area_array[idx]
         area_valid = is_area_valid(region_id, car_inside_areas[region_id], area)
@@ -278,7 +282,7 @@ def get_car_inside_status(garage_status, region_id, det):
             # - get the distance from true center
             # - get the angle from true center
             within_radius, on_travel_path = is_on_target(car_inside_centers[region_id], center, 
-                car_inside_dist_limits[region_id], 80, 100)
+                car_inside_dist_limits[region_id], 50, 82)
 
             # on target
             if within_radius == True:
