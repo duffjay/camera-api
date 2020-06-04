@@ -9,6 +9,8 @@ from inference import ModelInference
 from inference import radius, angle
 from inference import is_area_valid, is_on_target
 
+from person import get_person_status
+
 # If new camera
 # - you'll have to adjust centers
 # - maybe?  area
@@ -17,12 +19,19 @@ log = logging.getLogger(__name__)
 
 # important assumptions
 unknown = -1
+
+# TODO -- this needs to be moved
 history_depth = 120     # 1/2 second increments, depth of stack
 
 cam_garage_outdoor = 0  # ~ 1 sec camera
+cam_reg_garage_outdoor_full = 0
+cam_reg_garage_outdoor_driveway = 1
+cam_reg_garage_outdoor_backdoor = 2
+cam_reg_garage_outdoor_parking_pad = 3
+cam_reg_garage_outdoor_close = 4
+cam_reg_garage_outdoor_backyard = 5
+
 cam_garage_indoor = 2 
-
-
 cam_reg_garage_indoor_full = 0
 cam_reg_garage_indoor_left_door = 1
 cam_reg_garage_indoor_right_door = 2
@@ -72,7 +81,7 @@ car_inside_present = 10
 
 # common helpers
 
-def update_history(history, image_time, status_code, comment=''):
+def REFACTORupdate_history(history, image_time, status_code, comment=''):
     '''
     update the correct "slot" of the array with the status
     '''
@@ -327,17 +336,20 @@ class GarageStatus:
         self.car_mark_r0_history[0] = int(time.time() * 10)
         self.car_mark_r1_history = np.full((history_depth), -1, dtype=int)
         self.car_mark_r1_history[0] = int(time.time() * 10)
-        # -- person
         # -- car present - in the garage
         self.car_inside_r0_history = np.full((history_depth), -1, dtype=int)
         self.car_inside_r0_history[0] = int(time.time() * 10)
+        # -- person -- all camera:regions
+        self.person_c0r0_history = np.full((history_depth), -1, dtype=int)
+        self.person_c0r0_history[0] = int(time.time() * 10)
+
 
         return
     def __str__(self):
         garage_status_string = f".garage_status -- {self.door_status}"
         return garage_status_string
 
-    def update_from_detection(self, det):
+    def update_from_detection(self, home_status, det):
         '''
         Update GarageStatus from a Detection (== det)
         '''
@@ -346,29 +358,33 @@ class GarageStatus:
         log.info(f'GarageStatus.update_from_detection -- {det.camera_id} {det.region_id} = centers: {det.model_inference.bbox_center_array.tolist()}')
         log.info(f'GarageStatus.update_from_detection -- {det.camera_id} {det.region_id} = areas:   {det.model_inference.bbox_area_array.tolist()}')
 
-        # regions w/ gmarks
-        #  - region 0 == full res
-        #  - region 1 == left door
-        # for gmarks, strict position validation
-        if det.region_id == cam_reg_garage_indoor_left_door or \
-            det.region_id == cam_reg_garage_indoor_full:
-            log.info(f'GarageStatus.update_from_detection -- check gmarks')
-            get_gmark_status(self, det.region_id, det)
+        # camera = indoor 
+        if det.camera_id == cam_garage_indoor:
+            # regions w/ gmarks
+            #  - region 0 == full res
+            #  - region 1 == left door
+            # for gmarks, strict position validation
+            if det.region_id == cam_reg_garage_indoor_left_door or \
+                det.region_id == cam_reg_garage_indoor_full:
+                log.info(f'GarageStatus.update_from_detection -- check gmarks')
+                get_gmark_status(home_status.garage_status, det.region_id, det)
 
-            log.info(f'GarageStatus door (r0) history: {self.door_r0_history.tolist()[:20]}')
-            log.info(f'GarageStatus door (r1) history: {self.door_r1_history.tolist()[:20]}')
+                log.info(f'GarageStatus door (r0) history: {home_status.garage_status.door_r0_history.tolist()[:20]}')
+                log.info(f'GarageStatus door (r1) history: {home_status.garage_status.door_r1_history.tolist()[:20]}')
+                
+                log.info(f'GarageStatus car mark (r0) history: {home_status.garage_status.car_mark_r0_history.tolist()[:20]}')
+                log.info(f'GarageStatus car mark (r1) history: {home_status.garage_status.car_mark_r1_history.tolist()[:20]}')
             
-            log.info(f'GarageStatus car mark (r0) history: {self.car_mark_r0_history.tolist()[:20]}')
-            log.info(f'GarageStatus car mark (r1) history: {self.car_mark_r1_history.tolist()[:20]}')
-        
 
-        # regions w/ (actual car) - region 0 - full only
-        if det.region_id == cam_reg_garage_indoor_full:
-            log.info(f'GarageStatus.update_from_detection -- check car present indoor -- (full) region 0 only')
-            get_car_inside_status(self, det.region_id, det)
-            log.info(f'GarageStatus car inside (r0) history: {self.car_inside_r0_history.tolist()[:20]}')
+            # regions w/ (actual car) - region 0 - full only
+            if det.region_id == cam_reg_garage_indoor_full:
+                log.info(f'GarageStatus.update_from_detection -- check car present indoor -- (full) region 0 only')
+                get_car_inside_status(home_status.garage_status, det.region_id, det)
+                log.info(f'GarageStatus car inside (r0) history: {home_status.garage_status.car_inside_r0_history.tolist()[:20]}')
 
 
         # regions w/ people
+        # all cameras, all regions
+        get_person_status(home_status, det)
 
         return        

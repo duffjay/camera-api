@@ -14,7 +14,7 @@ import urllib.request
 import gen_util
 import camera_util
 
-
+import settings
 
 # works
 url = 'http://192.168.1.122/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=KL94LT46X6&user=admin&password=sT1nkeye'
@@ -32,6 +32,9 @@ def main():
     # args
     config_filename = sys.argv[1]   # 0 based
     config = gen_util.read_app_config(config_filename)
+
+    # set the global values
+    settings.init(config_filename)
 
     # camera config - list all found in the configuratio0n
     camera_config_list = config['camera']
@@ -55,7 +58,7 @@ def main():
     dim = resize_dimensions[resize_input]
     for i in range(250):
         start_time = time.perf_counter()  
-        camera_name, np_images = camera_util.get_camera_regions(camera_config)
+        camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config)
         print (" {:04d}  main -- camera: {}  secs: {:02.2f}".format(
             i, camera_name, (time.perf_counter() - start_time)))
         
