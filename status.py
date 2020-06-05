@@ -53,8 +53,8 @@ status_history_dict = {
         {"id" : 7, "name" : "stair 2",     "history" : {"person" : 0, "package": 0}}
         ] },
     "cam2" : {"id" : 2, "name" : "garage indoor", "regions" : [ 
-        {"id" : 0, "name" : "full",        "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
-        {"id" : 1, "name" : "left door",    "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
+        {"id" : 0, "name" : "full",        "history" : {"gmark_door" : 0, "gmark_car" : 0, "car" : 0, "person" : 0, "2whlr": 0}},
+        {"id" : 1, "name" : "left door",    "history" : {"gmark_door" : 0, "gmark_car" : 0, "car" : 0, "person" : 0, "2whlr": 0}},
         {"id" : 2, "name" : "right door",    "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
         {"id" : 3, "name" : "window", "history" : {"car" : 0, "person" : 0, "2whlr": 0}}
         ] }
@@ -62,7 +62,24 @@ status_history_dict = {
 
 history_depth = 120     # 1/2 second increments, depth of stack
 
+
+
 def configure_history_map(map_dict):
+    '''
+    the status history dict is UNCONFIGURED -- the values are all 0
+       why?  because it's easier to automate the row assignment - especially as you keep changing this
+    
+    this function will simply assign a row number sequentially
+    row 0 == meta data (e.g. timestamp of the update)
+    rows 1:  == the history
+
+    to facilitate a reverse lookup, this function will also create a row number map
+      key:  row number
+      value:  camera/region/catagory   e.g. 0:1:person
+    '''
+
+    row_num_dict = {}
+    row_num_dict[0] = "meta data"
     # row = 0 == meta data like the date stamp
     # history will start with row = 1
     np_row = 1
@@ -87,10 +104,11 @@ def configure_history_map(map_dict):
                     f'config history map: {camera_short_name}-{region_id}:{map_dict[camera_short_name]["regions"][region_id]["name"]}--{stack} == '
                     f' {map_dict[camera_short_name]["regions"][region_id]["history"][stack]}'
                 )
+                row_num_dict[np_row] = f'{camera_short_name}-{region_id}:{map_dict[camera_short_name]["regions"][region_id]["name"]}--{stack}'
                 np_row = np_row + 1
         np_row_count = np_row
 
-    return map_dict, np_row_count
+    return map_dict, np_row_count, row_num_dict
 
 def get_history_np_row(map_dict, camera_id, region_id, history_catagory):
     '''
@@ -149,13 +167,27 @@ class Status:
         '''
         
         # remember - timestamp == time * 10 == 1/10s of seconds
-        hist_timestamp = history[0,0]                               # history array timestamp
+        hist_timestamp = self.history[0,0]                               # history array timestamp
         det_timestamp = image_time                                  # timestamp when image was grabbed
         index = int((hist_timestamp - det_timestamp) / 10)    # add  1 because position 0 == timestamp
         
-        log.info(f'Status.update_history: {history.tolist()[history_row_num, :10]}  image_time:{image_time}  status:{status_code}  index: {index} {comment}')
+        #
+        log.info(f'Status.update_history: {self.history[history_row_num, :10].tolist()}'
+            f'  image_time:{image_time}  status:{status_code}  index: {index} {comment}')
         if index < (history_depth) and index > 0:
-            history[history_row_num, index] = status_code
-        return history
+            self.history[history_row_num, index] = status_code
+        return self.history
+    
+    def log_history(self, history_row_nums):
+        '''
+        formatted log (print)
+        '''
+
+        spaces = '                            '
+        for row_num in history_row_nums:
+            row_desc = settings.row_num_dict[row_num]
+            row_desc_len = len(row_desc)
+            log.info(f'home_status_history[{row_num}] {row_desc} {spaces[0:-row_desc_len]} {self.history[row_num, 0:25].tolist()}')
+        return
 
 

@@ -98,8 +98,8 @@ def init(config_filename):
     global safe_status_update
     safe_status_update = threading.Lock()
     
-    global configured_history_map, history_row_count
-    configured_history_map, history_row_count = status.configure_history_map(status.status_history_dict)
+    global configured_history_map, history_row_count, row_num_dict
+    configured_history_map, history_row_count, row_num_dict = status.configure_history_map(status.status_history_dict)
 
     global home_status
     home_status = status.Status(time.time())

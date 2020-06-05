@@ -43,7 +43,7 @@ def shift(stack):
         result[:, 0:shift_increment] = fill_value          # fill the new part, start at pos 1
         # paste positon = [0] + increment 
         result[:, shift_increment:] = history_rows[:, 0:-shift_increment]  # copy original in
-     else:
+    else:
         log.info(f'time_shift -- shift - time: {timestamp}  base: {base_time}  increment:  {shift_increment} NO SHIFT')
         result[:] = history_rows
 
@@ -60,6 +60,7 @@ def stack_shift(home_status):
         # with the lock
         with settings.safe_status_update:
             home_status.history = shift(home_status.history)
+            home_status.log_history([0,41,42,43,44,45,46,47,48,49,50,51,52,53])
 
         elapsed = (time.time() * 10) - timestamp
         if elapsed < 1.0:
