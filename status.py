@@ -7,6 +7,7 @@ import settings
 from inference import RegionDetection
 from inference import ModelInference
 from garage_status import GarageStatus
+import person
 
 log = logging.getLogger(__name__)
 
@@ -53,10 +54,22 @@ status_history_dict = {
         {"id" : 7, "name" : "stair 2",     "history" : {"person" : 0, "package": 0}}
         ] },
     "cam2" : {"id" : 2, "name" : "garage indoor", "regions" : [ 
-        {"id" : 0, "name" : "full",        "history" : {"gmark_door" : 0, "gmark_car" : 0, "car" : 0, "person" : 0, "2whlr": 0}},
-        {"id" : 1, "name" : "left door",    "history" : {"gmark_door" : 0, "gmark_car" : 0, "car" : 0, "person" : 0, "2whlr": 0}},
-        {"id" : 2, "name" : "right door",    "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
-        {"id" : 3, "name" : "window", "history" : {"car" : 0, "person" : 0, "2whlr": 0}}
+        {"id" : 0, "name" : "full",       "history" : {"gmark_door" : 0, "gmark_car" : 0, "car" : 0, "person" : 0, "2whlr": 0}},
+        {"id" : 1, "name" : "left door",  "history" : {"gmark_door" : 0, "gmark_car" : 0, "car" : 0, "person" : 0, "2whlr": 0}},
+        {"id" : 2, "name" : "right door", "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
+        {"id" : 3, "name" : "window",     "history" : {"person" : 0, "2whlr": 0}}
+        ] },
+    "cam3" : {"id" : 3, "name" : "backdoor", "regions" : [ 
+        {"id" : 0, "name" : "full",       "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
+        {"id" : 1, "name" : "left hedge",  "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
+        {"id" : 2, "name" : "right hedge", "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
+        {"id" : 3, "name" : "door",        "history" : {"person" : 0}}
+        ] },
+    "cam4" : {"id" : 4, "name" : "backyard", "regions" : [ 
+        {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
+        {"id" : 1, "name" : "garage window",  "history" : {"car" : 0, "person" : 0}},
+        {"id" : 2, "name" : "garage",         "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
+        {"id" : 3, "name" : "patio",          "history" : {"person" : 0}}
         ] }
 }
 
@@ -159,11 +172,17 @@ class Status:
             # 
             self.garageStatus = self.garage_status.update_from_detection(self, detection)
 
+        # person - is a person present
+        # - currently applicable to all cameras, all regions
+        person_status, person_array_shape = person.get_person_status(self, detection)
+
         return self 
 
     def update_history(self, image_time, history_row_num, status_code, comment=''):
         '''
         update the correct row of the history matrix
+        - you must already know the status - for that history line - e.g.  car present, door down etc
+
         '''
         
         # remember - timestamp == time * 10 == 1/10s of seconds
@@ -172,10 +191,12 @@ class Status:
         index = int((hist_timestamp - det_timestamp) / 10)    # add  1 because position 0 == timestamp
         
         #
-        log.info(f'Status.update_history: {self.history[history_row_num, :10].tolist()}'
-            f'  image_time:{image_time}  status:{status_code}  index: {index} {comment}')
-        if index < (history_depth) and index > 0:
+        if index < (history_depth) and index >= 0:
             self.history[history_row_num, index] = status_code
+
+        log.info(f'Status.update_history: {self.history[history_row_num, :10].tolist()}'
+            f' hist_time: {hist_timestamp}'
+            f' image_time:{image_time}  status:{status_code}  index: {index} {comment}')
         return self.history
     
     def log_history(self, history_row_nums):
@@ -187,7 +208,7 @@ class Status:
         for row_num in history_row_nums:
             row_desc = settings.row_num_dict[row_num]
             row_desc_len = len(row_desc)
-            log.info(f'home_status_history[{row_num}] {row_desc} {spaces[0:-row_desc_len]} {self.history[row_num, 0:25].tolist()}')
+            log.info(f'home_status_history[{row_num}] {row_desc} {spaces[0:-row_desc_len]} {self.history[row_num, 0:40].tolist()}')
         return
 
 

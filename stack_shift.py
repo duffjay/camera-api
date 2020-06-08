@@ -25,11 +25,9 @@ def shift(stack):
     history_rows = stack[1:]
 
     # num == how much to shift
-    timestamp = time.time() * 10
+    timestamp = int(time.time() * 10)
     base_time = meta_row[0, 0]
     shift_increment = int((timestamp - base_time) / 10)
-
-    shift_increment = 3
 
     fill_value = -1
 
@@ -55,20 +53,20 @@ def shift(stack):
 
 def stack_shift(home_status):
     while True:
-        timestamp = time.time() * 10
+        start = time.time()
 
         # with the lock
         with settings.safe_status_update:
             home_status.history = shift(home_status.history)
-            home_status.log_history([0,41,42,43,44,45,46,47,48,49,50,51,52,53])
+            home_status.log_history(list(range(75)))
 
-        elapsed = (time.time() * 10) - timestamp
+        elapsed = time.time() - start
         if elapsed < 1.0:
             sleep_time = 1.0 - elapsed
         else:
             sleep_time = 0.0
 
-        log.debug(f'time_shift -- sleep:  {time.time()}  {timestamp}  elapsed: {elapsed} sleep: {sleep_time}')
+        log.info(f'time_shift -- sleep:  {time.time()}  {start}  elapsed: {elapsed} sleep: {sleep_time}')
         time.sleep(sleep_time)
 
         # stop?

@@ -245,11 +245,11 @@ def get_gmark_status(home_status, region_id, det):
             # if this detected object (in the camera/region) was a gmark_door
             if door_status >= 0:
                 history_row_num = status.get_history_np_row(settings.configured_history_map, det.camera_id, det.region_id, "gmark_door")
-                home_status.update_history(det.image_time, history_row_num, door_status, comment=f'gmark_door- {det.camera_id}:{det.region_id}')
+                home_status.update_history(det.image_time, history_row_num, door_status, comment=f'gmark_door-{det.camera_id}:{det.region_id}')
             # if this detected object (in the camera/region) was a gmark_car
             if car_status >= 0:
                 history_row_num = status.get_history_np_row(settings.configured_history_map, det.camera_id, det.region_id, "gmark_car")
-                home_status.update_history(det.image_time, history_row_num, car_status, comment=f'gmark_car- {det.camera_id}:{det.region_id}')
+                home_status.update_history(det.image_time, history_row_num, car_status, comment=f'gmark_car-{det.camera_id}:{det.region_id}')
 
 
 
@@ -315,7 +315,7 @@ def get_car_inside_status(home_status, region_id, det):
 
         if car_status >= 0:
                 history_row_num = status.get_history_np_row(settings.configured_history_map, det.camera_id, det.region_id, "car")
-                home_status.update_history(det.image_time, history_row_num, car_status, comment=f'car- {det.camera_id}:{det.region_id}')
+                home_status.update_history(det.image_time, history_row_num, car_status, comment=f'car-{det.camera_id}:{det.region_id}')
 
     return car_status
 
