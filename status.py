@@ -8,6 +8,7 @@ from inference import RegionDetection
 from inference import ModelInference
 from garage_status import GarageStatus
 import person
+import car
 
 log = logging.getLogger(__name__)
 
@@ -151,7 +152,7 @@ class Status:
         Status.__instance.timestamp = timestamp
         Status.__instance.garage_status = GarageStatus(unknown, unknown, unknown, unknown)
         # create the history numpy array
-        Status.__instance.history = np.full([settings.history_row_count, history_depth], -1, dtype=int)
+        Status.__instance.history = np.full([settings.history_row_count, history_depth], 0, dtype=int)
         # set the timestamp
         Status.__instance.history[0,0] = int(time.time() * 10)
 
@@ -175,6 +176,13 @@ class Status:
         # person - is a person present
         # - currently applicable to all cameras, all regions
         person_status, person_array_shape = person.get_person_status(self, detection)
+
+
+        # car - is a car present
+        # - does not apply to indoor garage camera #2
+        if detection.camera_id in (0, 1, 3, 4):
+            car_status, car_array_shape = car.get_car_status(self, detection)
+
 
         return self 
 

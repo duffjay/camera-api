@@ -10,9 +10,9 @@ import numpy as np
 import status
 
 log = logging.getLogger(__name__)
-unknown = -1
+unknown = 0
 person_class_id = 1
-person_present = 10
+person_present = 1
 
 def get_person_status(home_status, det):
     '''
@@ -24,7 +24,7 @@ def get_person_status(home_status, det):
     This is a many to one -- there can be many persons - doesn't matter, 
     we're only grabbing the fact there was A person
     '''
-    person_status = -1
+    person_status = 0
 
     log.info(f'get_person_status - cam: {det.camera_id}-{det.region_id}')
     # # default == unknown
@@ -43,9 +43,9 @@ def get_person_status(home_status, det):
         # - there is no logic for person location - so no reason to interpret the size, location, travel path (compared to gmark)
         # area_valid = is_area_valid(region_id, gmark_areas[region_id], area)
         person_status = person_present
-        # update_history(garage_status.car_mark_r1_history, det.image_time, car_status, 'r1:car_mark')
+        # update_history
         history_row_num = status.get_history_np_row(settings.configured_history_map, det.camera_id, det.region_id, "person")
-        home_status.update_history(det.image_time, history_row_num, person_status, comment=f'person- {det.camera_id}:{det.region_id}')
+        home_status.update_history(det.image_time, history_row_num, person_status, comment=f'person-{det.camera_id}:{det.region_id}')
 
             
     return person_status, person_array.shape[0]

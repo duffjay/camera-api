@@ -29,7 +29,7 @@ def shift(stack):
     base_time = meta_row[0, 0]
     shift_increment = int((timestamp - base_time) / 10)
 
-    fill_value = -1
+    fill_value = 0
 
     # shift  
     #   - NOT handling negative shift (shift to left)
