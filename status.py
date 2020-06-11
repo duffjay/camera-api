@@ -9,6 +9,7 @@ from inference import ModelInference
 from garage_status import GarageStatus
 import person
 import car
+import two_whlr
 
 log = logging.getLogger(__name__)
 
@@ -145,10 +146,10 @@ class Status:
     __instance = None
     def __new__(cls, timestamp):
         if Status.__instance is None:
-            print ("new object")
+            print ("new Status object created")
             Status.__instance = object.__new__(cls)
         else:
-            print ("reused object")
+            print ("reused object -- ERROR - you shouldn't be attempting to create another")
         Status.__instance.timestamp = timestamp
         Status.__instance.garage_status = GarageStatus(unknown, unknown, unknown, unknown)
         # create the history numpy array
@@ -183,6 +184,11 @@ class Status:
         if detection.camera_id in (0, 1, 3, 4):
             car_status, car_array_shape = car.get_car_status(self, detection)
 
+        # 2 wheeler (bicycle or motorcycle) - is present
+        # - ignore indoor garage
+        if detection.camera_id in (0, 1, 3, 4):
+            two_whlr_status, two_whlr_array_shape = two_whlr.get_2whlr_status(self, detection)
+
 
         return self 
 
@@ -213,10 +219,11 @@ class Status:
         '''
 
         spaces = '                            '
-        for row_num in history_row_nums:
-            row_desc = settings.row_num_dict[row_num]
-            row_desc_len = len(row_desc)
-            log.info(f'home_status_history[{row_num}] {row_desc} {spaces[0:-row_desc_len]} {self.history[row_num, 0:40].tolist()}')
+        with settings.safe_print:
+            for row_num in history_row_nums:
+                row_desc = settings.row_num_dict[row_num]
+                row_desc_len = len(row_desc)
+                log.info(f'home_status_history[{row_num}] {row_desc} {spaces[0:-row_desc_len]} {self.history[row_num, 0:40].tolist()}')
         return
 
 
