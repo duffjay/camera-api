@@ -15,6 +15,10 @@ pip install contextlib2
 pip install jupyter  
 pip install boto3  
 pip install tf_slim  
+pip install PySocks  
+pip install requests  
+
+
 
 Tensorflow or just the TFLite Interpreter?  Well, you will be using a lot of tf.* utilities  
 pip install tensorflow-gpu==1.15  
