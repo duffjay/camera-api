@@ -7,12 +7,14 @@ import random
 import string
 import urllib
 
+
 import time
 import logging
 
 from PIL import Image
 
 import settings
+
 
 log = logging.getLogger(__name__)
 
@@ -172,6 +174,8 @@ def config_camara_data(config):
 
     return camera_config_list, camera_count, camera_snapshot_times, bbox_stack_lists, bbox_push_lists
 
+
+
 def get_reolink_url(scheme, ip):
     '''
     construct the camera base URL
@@ -280,3 +284,26 @@ def get_camera_regions(camera_id, config):
         is_color = 0
     
     return name, np_images, is_color
+
+
+
+#
+# Optical Zoom
+#
+def start_zoom(camera_id, config, direction, speed):
+    '''
+    begin the zoom operation
+    '''
+    if direction == 'in':
+        operation = 'ZoomInc'
+    elif direction == 'out':
+        operation = 'ZoomDec'
+    
+
+    data = [{"cmd": "PtzCtrl", "action": 0, "param": {"channel": 0, "op": operation, "speed": speed}}]
+
+    return  data
+
+def stop_zoom(camera_id, config):
+    data = [{"cmd": "PtzCtrl", "action": 0, "param": {"channel": 0, "op": "Stop"}}]
+    return data

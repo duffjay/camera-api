@@ -124,6 +124,8 @@ def image_consumer(consumer_id,
                     # create a detection & update home_status
                     det = inference.RegionDetection(image_time, camera_id, region_id, new_objects, dup_objects, inf)
                     with settings.safe_status_update:
+                        # - - - - - - - UPDATING status & history - - - - - - - -
+                        #   called as a per camera:region function
                         settings.home_status.update_from_detection(det)
                 
                 # display - 

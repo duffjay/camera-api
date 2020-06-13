@@ -1,5 +1,5 @@
 
-
+import os
 import io
 import sys
 
@@ -14,7 +14,15 @@ import urllib.request
 import gen_util
 import camera_util
 
+# add the ReolinkAPI project
+# 
+cwd = os.getcwd()
+reolink_api = os.path.abspath(os.path.join(cwd, '..', 'ReolinkCameraAPI'))
+sys.path.append(reolink_api)
 
+from Camera import Camera
+
+import settings
 
 # works
 url = 'http://192.168.1.122/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=KL94LT46X6&user=admin&password=sT1nkeye'
@@ -32,6 +40,9 @@ def main():
     # args
     config_filename = sys.argv[1]   # 0 based
     config = gen_util.read_app_config(config_filename)
+
+    # set the global values
+    settings.init(config_filename)
 
     # camera config - list all found in the configuratio0n
     camera_config_list = config['camera']
@@ -53,9 +64,31 @@ def main():
     resize_dimensions = [(640,480), (1200,720), (1920,1440)]
     resize_input = int(input ("Resize Factor (width, height), \n{}\nEnter 0,1,2 > ".format(resize_dimensions)))
     dim = resize_dimensions[resize_input]
+
+
+    # if camera has PTZ functionality
+    # - only camera_id = 5
+    if camera_id == 5:
+        # login to specified camera
+        ip = camera_config['ip']
+        username = camera_config['username']
+        password = camera_config['password']
+        camera_5 = Camera(ip, username, password)
+        print ("camera #5 logged in & instantiated")
+        # get a zoom factor
+        zoom_instruction = int(input("Enter seconds to zoom (+X to zoom in, -X to zoom out, 0 do do thing)"))
+        if zoom_instruction > 0:
+            camera_5.start_zooming_in()
+            time.sleep(zoom_instruction)
+            camera_5.stop_zooming()
+        if zoom_instruction < 0:
+            camera_5.start_zooming_out()
+            time.sleep(-zoom_instruction)
+            camera_5.stop_zooming()
+
     for i in range(250):
         start_time = time.perf_counter()  
-        camera_name, np_images = camera_util.get_camera_regions(camera_config)
+        camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config)
         print (" {:04d}  main -- camera: {}  secs: {:02.2f}".format(
             i, camera_name, (time.perf_counter() - start_time)))
         
