@@ -92,6 +92,10 @@ time_stamp = 0
 label = 1               # label = what activity?
 color_code_start = 2    # is_color values for each camera
                         # reserve 10
+last_recognized_face_timestamp = 12
+last_notification_timestamp = 13
+last_notification_event = 14
+
 
 
 def configure_history_map(map_dict):
