@@ -30,11 +30,13 @@ def init(config_filename):
     save_inference = config["save_inference"]
     annotation_dir = config["annotation_dir"]
     snapshot_dir = config["snapshot_dir"]
+    status_path = config["status_dir"]
 
     # global image_path
-    global image_path, annotation_path
+    global image_path, annotation_path, status_path
     image_path = os.path.abspath(os.path.join(cwd, snapshot_dir))
     annotation_path = os.path.abspath(os.path.join(cwd, annotation_dir))
+    status_path = os.path.abspath(os.path.join(cwd, status_dir))
 
     # Queues
     global imageQueue, faceQueue

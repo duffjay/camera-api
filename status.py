@@ -20,7 +20,8 @@ cam_garage_indoor = 2
 cam_front_porch = 1
 cam_back_porch = 3
 cam_back_yard = 4
-cam_side_yard = 5
+cam_garage_zoom = 5
+cam_side_yard = 6
 
 unknown = -1
 
@@ -72,11 +73,25 @@ status_history_dict = {
         {"id" : 1, "name" : "garage window",  "history" : {"car" : 0, "person" : 0}},
         {"id" : 2, "name" : "garage",         "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
         {"id" : 3, "name" : "patio",          "history" : {"person" : 0}}
+        ] },
+    "cam4" : {"id" : 5, "name" : "garage zoom", "regions" : [ 
+        {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0}},
+        {"id" : 1, "name" : "street",         "history" : {"car" : 0, "person" : 0}},
+        {"id" : 2, "name" : "back door",      "history" : {"car" : 0, "person" : 0}}
         ] }
 }
 
 history_depth = 120     # 1/2 second increments, depth of stack
 
+# the Status will be saved every second as a numpy array
+# - thus, all class information in the meta row (row 0)
+# - all history in the subsequent rows
+# 
+# these are the index values in the meta data row
+time_stamp = 0
+label = 1               # label = what activity?
+color_code_start = 2    # is_color values for each camera
+                        # reserve 10
 
 
 def configure_history_map(map_dict):
@@ -151,13 +166,12 @@ class Status:
         else:
             print ("reused object -- ERROR - you shouldn't be attempting to create another")
         Status.__instance.timestamp = timestamp
-        Status.__instance.garage_status = GarageStatus(unknown, unknown, unknown, unknown)
+        #DELETE Status.__instance.garage_status = GarageStatus(unknown, unknown, unknown, unknown)
         # create the history numpy array
         Status.__instance.history = np.full([settings.history_row_count, history_depth], 0, dtype=int)
         # set the timestamp
         Status.__instance.history[0,0] = int(time.time() * 10)
 
-        # TODO import numpy as np, shape history
         return Status.__instance
 
     def __str__(self):
@@ -169,10 +183,19 @@ class Status:
         called by image_consumer (per camera:region)
         '''
 
+        # - - - meta data - - - 
+        #
+        # color (vs infrared gray scale)
+        i = color_code_start + detection.camera_id
+        history[0, i] = detection.is_color
+
+        # - - - update status history - - - 
+        #  below, these functions will determine the status
+        #  and these functions call update_history to update the corresponding history row (stack)
+
         # garage indoor
         if detection.camera_id in (cam_garage_outdoor, cam_garage_indoor):
-            # 
-            self.garageStatus = self.garage_status.update_from_detection(self, detection)
+            garage_status.update_garage_status(self, detection)
 
         # person - is a person present
         # - currently applicable to all cameras, all regions
@@ -226,4 +249,11 @@ class Status:
                 log.info(f'home_status_history[{row_num}] {row_desc} {spaces[0:-row_desc_len]} {self.history[row_num, 0:40].tolist()}')
         return
 
-
+    def save_status(self, status_path):
+        '''
+        '''
+        # file name
+        base_name = '{}'.format(self.history[0,0])   
+        status_name = os.path.join(status_path, base_name + '.npy')
+        numpy.save(status_name, self.history)
+        return status_name

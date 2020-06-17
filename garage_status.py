@@ -245,54 +245,35 @@ def get_car_inside_status(home_status, region_id, det):
 
     return car_status
 
-class GarageStatus:
+
+
+def update_garage_status(home_status, det):
     '''
-    history == 121
-       [0] == timestamp
-       [1:history_depth] == stack
-
-       door_r0 == gmark on region 0 (full res)
-       door_r1 == gmark on region 1 (left side of door close-up)
+    Update GarageStatus from a Detection (== det)
     '''
-    def __init__(self, door_status, car_present, person_present, light_status):
-        self.door_status = door_status
-        self.car_present = car_present
-        self.person_present = person_present
-        self.light_status = light_status
+    
+    log.info(f'garage_status/update_garage_status -- {det.camera_id} {det.region_id} = classes: {det.model_inference.class_array.tolist()}')
+    log.info(f'garage_status/update_garage_status -- {det.camera_id} {det.region_id} = centers: {det.model_inference.bbox_center_array.tolist()}')
+    log.info(f'garage_status/update_garage_status -- {det.camera_id} {det.region_id} = areas:   {det.model_inference.bbox_area_array.tolist()}')
 
+    # camera = indoor 
+    if det.camera_id == cam_garage_indoor:
+        # regions w/ gmarks
+        #  - region 0 == full res
+        #  - region 1 == left door
+        # for gmarks, strict position validation
+        if det.region_id == cam_reg_garage_indoor_left_door or \
+            det.region_id == cam_reg_garage_indoor_full:
+            log.info(f'garage_status/update_garage_status -- check gmarks')
+            get_gmark_status(home_status, det.region_id, det)
+    
+        # regions w/ (actual car) - region 0 - full only
+        if det.region_id == cam_reg_garage_indoor_full:
+            log.info(f'garage_status/update_garage_status -- check car present indoor -- (full) region 0 only')
+            get_car_inside_status(home_status, det.region_id, det)
 
-        return
-    def __str__(self):
-        garage_status_string = f".garage_status -- {self.door_status}"
-        return garage_status_string
+    # regions w/ people
+    # all cameras, all regions
+    get_person_status(home_status, det)
 
-    def update_from_detection(self, home_status, det):
-        '''
-        Update GarageStatus from a Detection (== det)
-        '''
-        
-        log.info(f'GarageStatus.update_from_detection -- {det.camera_id} {det.region_id} = classes: {det.model_inference.class_array.tolist()}')
-        log.info(f'GarageStatus.update_from_detection -- {det.camera_id} {det.region_id} = centers: {det.model_inference.bbox_center_array.tolist()}')
-        log.info(f'GarageStatus.update_from_detection -- {det.camera_id} {det.region_id} = areas:   {det.model_inference.bbox_area_array.tolist()}')
-
-        # camera = indoor 
-        if det.camera_id == cam_garage_indoor:
-            # regions w/ gmarks
-            #  - region 0 == full res
-            #  - region 1 == left door
-            # for gmarks, strict position validation
-            if det.region_id == cam_reg_garage_indoor_left_door or \
-                det.region_id == cam_reg_garage_indoor_full:
-                log.info(f'GarageStatus.update_from_detection -- check gmarks')
-                get_gmark_status(home_status, det.region_id, det)
-        
-            # regions w/ (actual car) - region 0 - full only
-            if det.region_id == cam_reg_garage_indoor_full:
-                log.info(f'GarageStatus.update_from_detection -- check car present indoor -- (full) region 0 only')
-                get_car_inside_status(home_status, det.region_id, det)
-
-        # regions w/ people
-        # all cameras, all regions
-        get_person_status(home_status, det)
-
-        return        
+    return        
