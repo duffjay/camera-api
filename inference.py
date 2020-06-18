@@ -93,29 +93,37 @@ def get_save_detection_path(rule_num, det):
     annotation_name = None
     save = False
     priority = False
+    priority_class = False
 
     # camera 6 = side yard included
     camera_priority_dict = {
-        0 : "True", 
-        1 : "True",
-        2 : "False",
-        3 : "False",
-        4 : "True",
-        5 : "True",
-        6 : "True"}
+        0 : True, 
+        1 : True,
+        2 : False,
+        3 : False,
+        4 : True,
+        5 : True,
+        6 : True}
     # no problem adding regions that don't exist
     region_priority_dict = {
-        0 : {0: "True", 1 : "True", 2 : "True", 3 : "True", 4 : "True", 5 : "True", 6 : "True", 7 : "True"},
-        1 : {0: "False", 1 : "False", 2 : "True", 3 : "True", 4 : "True", 5 : "True", 6 : "True", 7 : "True"},
-        2 : {0: "True", 1 : "True", 2 : "True", 3 : "True", 4 : "True", 5 : "True", 6 : "True", 7 : "True"},
-        3 : {0: "True", 1 : "True", 2 : "True", 3 : "True", 4 : "True", 5 : "True", 6 : "True", 7 : "True"},
-        4 : {0: "False", 1 : "True", 2 : "True", 3 : "True", 4 : "True", 5 : "True", 6 : "True", 7 : "True"},
-        5 : {0: "True", 1 : "True", 2 : "True", 3 : "True", 4 : "True", 5 : "True", 6 : "True", 7 : "True"},
-        6 : {0: "True", 1 : "True", 2 : "True", 3 : "True", 4 : "True", 5 : "True", 6 : "True", 7 : "True"},
+        0 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+        1 : {0: False, 1 : False, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+        2 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+        3 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+        4 : {0: False, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+        5 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+        6 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
     }
 
+    # check for priority class
+    priority_classes = np.asarray([4, 8, 34, 24, 18, 25, 27, 6, 28, 32, 39])
+    detected_priority_classes = np.intersect1d(det.model_inference.class_array, priority_classes)
+    if detected_priority_classes.shape[0] > 0:
+        priority_class = True
+
+    # check for priority camera + region
     priority = camera_priority_dict[det.camera_id]
-    if priority == 'True':
+    if priority == True:
         priority = region_priority_dict[det.camera_id][det.region_id]
     
     # figure out the rules
@@ -126,13 +134,18 @@ def get_save_detection_path(rule_num, det):
         save = True
 
     # this is saving high priority images with new objects
-    if rule_num == 2 and priority == 'True' and det.new_objects > 0:
-        save = True
+    if rule_num == 2 and det.new_objects > 0:
+        if priority == True:
+            save = True
+        elif priority_class == True:
+            save = True
     
     # this is like saving the stream
+    # -- regardless of new objects -- 
+    # camera 5, region 1, save EVERY frame
     if rule_num == 3:
         if det.camera_id == 5:
-            if det.region_id = 1:
+            if det.region_id == 1:
                 save = True
 
     if save == True:

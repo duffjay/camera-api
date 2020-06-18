@@ -6,7 +6,7 @@ import settings
 
 from inference import RegionDetection
 from inference import ModelInference
-from garage_status import GarageStatus
+
 import person
 import car
 import two_whlr
