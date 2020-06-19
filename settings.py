@@ -58,8 +58,8 @@ def init(config_filename):
     aws_profile = config["aws_profile"]
     aws_session = aws_util.get_session()
 
-    global aws_sqs_queue
-    aws_sqs_queue = config["aws_sqs_queue"]
+    global aws_s3_public_image
+    aws_s3_public_image = config["aws_s3_public_image"]
 
     # faces
     global facial_detection_enabled

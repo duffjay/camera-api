@@ -88,13 +88,18 @@ history_depth = 120     # 1/2 second increments, depth of stack
 # - all history in the subsequent rows
 # 
 # these are the index values in the meta data row
-time_stamp = 0
-label = 1               # label = what activity?
-color_code_start = 2    # is_color values for each camera
-                        # reserve 10
-last_recognized_face_timestamp = 12
-last_notification_timestamp = 13
-last_notification_event = 14
+status_meta_index  = {
+    "time_stamp" : 0,
+    "event_class" : 1,                          # label = what activity?
+    "color_code_start" : 2,                     # is_color values for each camera
+                                                # reserve 10
+    "last_camera_image_timestamp_start" : 12,   # last timestamp processed by each camera
+                                                # reserve 10    
+    "last_recognized_face_timestamp" : 22,
+    "last_notification_timestamp" : 23,
+    "last_notification_event" : 24
+    }
+
 
 
 
@@ -156,6 +161,7 @@ def get_history_np_row(map_dict, camera_id, region_id, history_catagory):
 
 
 
+
 # singleton - Status
 # - we want only one object/instance of this class
 # TODO
@@ -192,6 +198,9 @@ class Status:
         # color (vs infrared gray scale)
         i = color_code_start + detection.camera_id
         history[0, i] = detection.is_color
+        # last camera image timestamp
+        last_camera_image_timestamp_index = last_camera_image_timestamp_sart + det.camera_id
+        history[0, last_camera_image_timestamp_index] = det.image_time
 
         # - - - update status history - - - 
         #  below, these functions will determine the status

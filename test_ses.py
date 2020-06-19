@@ -1,4 +1,5 @@
 import sys
+import base64
 
 import boto3
 from botocore.exceptions import ClientError
@@ -7,9 +8,12 @@ import aws_util
 import notification_util
 import settings
 
-def get_sample_image_encoded(image_file):
-    
-    return
+def image_to_data_url(filename):
+    ext = filename.split('.')[-1]
+    prefix = f'data:image/{ext};base64,'
+    with open(filename, 'rb') as f:
+        img = f.read()
+    return prefix + base64.b64encode(img).decode('utf-8')
 
 def main():
     # args
@@ -18,6 +22,7 @@ def main():
 
     ses = settings.aws_session.client('ses')
   
+    encoded_image = image_to_data_url('faces/15920694963-3-3.jpg')
 
 
     # Replace sender@example.com with your "From" address.
@@ -26,7 +31,8 @@ def main():
 
     # Replace recipient@example.com with a "To" address. If your account 
     # is still in the sandbox, this address must be verified.
-    RECIPIENT = "duffjay@gmail.com"
+    # RECIPIENT = "duffjay@gmail.com"
+    RECIPIENT = "jay.duff@cfacorp.com"
 
     # Specify a configuration set. If you do not want to use a configuration
     # set, comment the following variable, and the 
@@ -37,7 +43,7 @@ def main():
     AWS_REGION = "us-east-1"
 
     # The subject line for the email.
-    SUBJECT = "home security 16:56"
+    SUBJECT = "home security 18:37"
 
     # The email body for recipients with non-HTML email clients.
     BODY_TEXT = ("Amazon SES Test (Python)\r\n"
@@ -45,21 +51,19 @@ def main():
                 "AWS SDK for Python (Boto)."
                 )
                 
+    # f'<img src="{encoded_image}" alt="Red dot" />'
     # The HTML body of the email.
-    BODY_HTML = """<html>
-    <head></head>
-    <body>
-    <h1>Amazon SES Test (SDK for Python)</h1>
-    <p>This email was sent with
-        <a href='https://aws.amazon.com/ses/'>Amazon SES</a> using the
-        <a href='https://aws.amazon.com/sdk-for-python/'>
-        AWS SDK for Python (Boto)</a>.</p>
-        <img src="data:image/jpg;base64, iVBORw0KGgoAAAANSUhEUgAAAAUA
-    AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO
-        9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red dot" />
-    </body>
-    </html>
-                """            
+    BODY_HTML = (f'<html>'
+        f'<head></head>'
+        f'  <body>'
+        f'    <h1>Amazon SES Test (SDK for Python)</h1>'
+        f'    <p>This email was sent with</p>'
+        f'    <img src="{encoded_image}" alt="Red dot" />'
+        f'  </body>'
+        f'</html>')
+
+    print ("HTML: \n", BODY_HTML)
+          
 
     # The character encoding for the email.
     CHARSET = "UTF-8"
