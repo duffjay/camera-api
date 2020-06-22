@@ -121,8 +121,9 @@ def image_consumer(consumer_id,
                     with settings.safe_stack_update:
                         new_objects, dup_objects = tensorflow_util.identify_new_detections(image_time,
                             settings.iou_threshold, camera_id, region_id, inf.bbox_array, bbox_stack_lists[camera_id], bbox_push_lists[camera_id])
-                    # create a detection & update home_status
-                    det = inference.RegionDetection(image_time, camera_id, region_id, new_objects, dup_objects, inf)
+                    # D E T E C T I O N  class
+                    # - create a detection & update home_status
+                    det = inference.RegionDetection(image_time, camera_id, region_id, is_color, new_objects, dup_objects, inf)
                     with settings.safe_status_update:
                         # - - - - - - - UPDATING status & history - - - - - - - -
                         #   called as a per camera:region function
@@ -150,19 +151,11 @@ def image_consumer(consumer_id,
                 # S A V E
                 # - set up a couple of rules for saving
                   # default
-                rule_num = 1
-                save_inference = is_save_inference(rule_num, camera_id, region_id, num_detections, new_objects)
+                rule_num = 2   # priority camera/region w/ new objects
+                image_name, annotation_name = inference.get_save_path(rule_num, det)
+                log.info(f'image_consumer/get_save_path: {save_path}')
 
-                saved = False
-                if save_inference == True:
-                    # base name == sssssss-camera_id-region_id-c/g
-                    color_code = 'c'            # g == grayscale, c == color
-                    if is_color == 0:
-                        color_code = 'g'                                
-                    base_name = '{}-{}-{}-{}'.format(image_time, camera_id, region_id, color_code)   
-                    image_name = os.path.join(settings.image_path,  base_name + '.jpg')
-                    annotation_name = os.path.join(settings.annotation_path,  base_name + '.xml')
-                    log.debug(f"image_consumer -- saving: {image_name} {image.shape} {annotation_name}")
+                if image_name is not None:
                     # original image - h: 480  w: 640
                     saved = True
                     cv2.imwrite(image_name, orig_image)

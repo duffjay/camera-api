@@ -30,11 +30,13 @@ def init(config_filename):
     save_inference = config["save_inference"]
     annotation_dir = config["annotation_dir"]
     snapshot_dir = config["snapshot_dir"]
+    status_dir = config["status_dir"]
 
     # global image_path
-    global image_path, annotation_path
+    global image_path, annotation_path, status_path
     image_path = os.path.abspath(os.path.join(cwd, snapshot_dir))
     annotation_path = os.path.abspath(os.path.join(cwd, annotation_dir))
+    status_path = os.path.abspath(os.path.join(cwd, status_dir))
 
     # Queues
     global imageQueue, faceQueue
@@ -55,6 +57,9 @@ def init(config_filename):
     global aws_session, aws_profile
     aws_profile = config["aws_profile"]
     aws_session = aws_util.get_session()
+
+    global aws_s3_public_image
+    aws_s3_public_image = config["aws_s3_public_image"]
 
     # faces
     global facial_detection_enabled

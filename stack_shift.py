@@ -57,9 +57,13 @@ def stack_shift(home_status):
 
         # with the lock
         with settings.safe_status_update:
-            home_status.history = shift(home_status.history)
-            home_status.log_history(list(range(75)))
+            home_status.save_status(settings.status_path)       # save Status before shifting
+            home_status.history = shift(home_status.history)    # shift it
+            home_status.log_history(list(range(75)))            # print in the log
 
+
+        # you want a total cycle period = 1.00 second
+        # so take the elapsed time + (sleep time) = 1.00 seconds
         elapsed = time.time() - start
         if elapsed < 1.0:
             sleep_time = 1.0 - elapsed
