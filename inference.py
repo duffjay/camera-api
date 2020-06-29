@@ -1,10 +1,11 @@
 import os
 import sys
+import time
 import numpy as np
 import logging
 
 from math import atan2, degrees
-
+# from settings import image_path
 
 # add the tensorflow models project to the Python path
 # github tensorflow/models
@@ -81,13 +82,13 @@ def is_on_target(target_center, detection_center, distance_limit, min_angle, max
         f' within_radius: {within_radius}  on_travel_path: {on_travel_path}')
     return within_radius, on_travel_path
 
-def get_save_detection_path(rule_num, det):
+def get_save_detection_path(rule_num, det, image_path, annotation_path):
     '''
     rule 1 = save only if there are new objects - all cameras
     rule 2 = only priority camera + region, only new objects
     rule 3 = all images from a specific list of camera/regions
     '''
-
+    
     # default values
     image_name = None  # default path, None == don't save it
     annotation_name = None
@@ -100,26 +101,49 @@ def get_save_detection_path(rule_num, det):
         0 : True, 
         1 : True,
         2 : False,
-        3 : False,
+        3 : True,
         4 : True,
         5 : True,
         6 : True}
     # no problem adding regions that don't exist
     region_priority_dict = {
         0 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
-        1 : {0: False, 1 : False, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+        1 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
         2 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
         3 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
-        4 : {0: False, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+        4 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
         5 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
         6 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
     }
 
+    # TODO
+    # -- i think you can delete this once you've tested it
+    # # check for rule 3 - stream, if no detection, you need a simpler name
+    # # - if rule 3 & a detection, you can generate full names
+    # if rule_num == 3 and det is None:
+    #     # there is no detection, so you don't know camera or region
+    #     # - unlikely, temporary only situation - so not making this complicated
+    #     # - make this unique by using a full time stamp + stream
+    #     base_name = int(time.time() * 100)
+    #     image_name = f'{base_name}-stream.jpg'
+    #     return image_name, None
+
+
+    # # if the rule is NOT 3 (only rule that allows no detection)
+    # # - return None
+    # if rule_num != 3 and det is None:
+    #     return None, None
+
+    # - - - - - - - - all of these rules - - - - - - - -
+    # + have a detection
+    # + are NOT rule #3 - stream saving
+
     # check for priority class
-    priority_classes = np.asarray([4, 8, 34, 24, 18, 25, 27, 6, 28, 32, 39])
-    detected_priority_classes = np.intersect1d(det.model_inference.class_array, priority_classes)
-    if detected_priority_classes.shape[0] > 0:
-        priority_class = True
+    if det.model_inference is not None:
+        priority_classes = np.asarray([1, 4, 8, 34, 24, 18, 25, 27, 6, 28, 32, 39])
+        detected_priority_classes = np.intersect1d(det.model_inference.class_array, priority_classes)
+        if detected_priority_classes.shape[0] > 0:
+            priority_class = True
 
     # check for priority camera + region
     priority = camera_priority_dict[det.camera_id]
@@ -134,10 +158,10 @@ def get_save_detection_path(rule_num, det):
         save = True
 
     # this is saving high priority images with new objects
+    # - ONLY priority classes
     if rule_num == 2 and det.new_objects > 0:
-        if priority == True:
-            save = True
-        elif priority_class == True:
+        # you'll miss the mail man if you only keep priority classes
+        if priority == True and priority_class == True:
             save = True
     
     # this is like saving the stream
@@ -148,15 +172,17 @@ def get_save_detection_path(rule_num, det):
             if det.region_id == 1:
                 save = True
 
+    log.info(f"image_consumer/get_save_detection_path -- input:  rule# {rule_num} cam#: {det.camera_id}:{det.region_id} objs: {det.detected_objects} priority - cam/reg: {priority} class: {priority_class}")
+
     if save == True:
     # base name == sssssss-camera_id-region_id-c/g
         color_code = 'c'            # g == grayscale, c == color
         if det.is_color == 0:
             color_code = 'g'                                
         base_name = '{}-{}-{}-{}'.format(det.image_time, det.camera_id, det.region_id, color_code)   
-        image_name = os.path.join(settings.image_path,  base_name + '.jpg')
-        annotation_name = os.path.join(settings.annotation_path,  base_name + '.xml')
-        log.debug(f"image_consumer/get_save_detection_path -- saving: {image_name} {image.shape} {annotation_name}")
+        image_name = os.path.join(image_path,  base_name + '.jpg')
+        annotation_name = os.path.join(annotation_path,  base_name + '.xml')
+        log.info(f"image_consumer/get_save_detection_path -- saving: {image_name} {image_name} {annotation_name}")
     return image_name, annotation_name
 
 # C L A S S
@@ -166,16 +192,23 @@ def get_save_detection_path(rule_num, det):
 
 
 class RegionDetection():
-    def __init__(self, image_time, camera_id, region_id, is_color, new_objects, dup_objects, model_inference):
+    def __init__(self, image_time, camera_id, region_id, is_color, detected_objects, new_objects, model_inference):
         self.image_time = image_time  # time * 10
         self.camera_id = camera_id
         self.region_id = region_id
         self.is_color = is_color
-        self.new_objects = new_objects
-        self.dup_objects = dup_objects
-        self.model_inference = model_inference
+
+        if detected_objects > 0:
+            self.detected_objects = detected_objects
+            self.new_objects = new_objects
+            self.model_inference = model_inference
+        else:
+            self.detected_objects = 0
+            self.new_objects = 0
+            self.model_inference = None
+
     def __str__(self):
-        region_string = f'RegionDection - camera: {self.camera_id}  region: {self.region_id}  new: {self.new_objects}  dup: {self.dup_objects}\n--{self.model_inference}'
+        region_string = f'RegionDection - camera: {self.camera_id}  region: {self.region_id}  objs: {self.detected_objects} new: {self.new_objects} \n--{self.model_inference}'
         return region_string
 
 

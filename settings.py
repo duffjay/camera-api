@@ -108,3 +108,11 @@ def init(config_filename):
 
     global home_status
     home_status = status.Status(time.time())
+
+    # - - - - - - - - 
+    # H U E  
+    #  light control
+
+    global hue_bridge_ip, hue_bridge_username
+    hue_bridge_ip = config['hue_bridge_ip']
+    hue_bridge_username = config['hue_bridge_username']

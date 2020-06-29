@@ -35,6 +35,7 @@ import image_producer
 import image_consumer
 import face_consumer
 import stack_shift
+import lights
 
 import settings
 
@@ -112,10 +113,12 @@ def main():
     thread.daemon = True
     thread.start()
 
-
-    # time.sleep(240)
-    # print ("main() sleep timed out")
-    # run_state = False
+    #   P R O C E S S    L I G H T S
+    #   - front lights (front porch & sunroom)
+    #   - back lights (back porch)
+    thread = threading.Thread(target=lights.process_front_lights, args=(settings.home_status,))
+    thread.daemon = True
+    thread.start()
 
     logger.info("main() exit")
 

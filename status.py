@@ -1,3 +1,4 @@
+import os
 import logging
 import numpy as np
 import time
@@ -7,6 +8,7 @@ import settings
 from inference import RegionDetection
 from inference import ModelInference
 
+import garage_status
 import person
 import car
 import two_whlr
@@ -14,7 +16,17 @@ import two_whlr
 log = logging.getLogger(__name__)
 
 # important assumptions
+camera_dict_name = {
+    "cam_garage_outdoor" : 0,
+    "cam_front_porch"    : 1,
+    "cam_garage_indoor"  : 2, 
+    "cam_back_porch"     : 3,
+    "cam_back_yard"      : 4,
+    "cam_garage_zoom"    : 5,
+    "cam_side_yard"      : 6
+}
 
+# TODO - delete this, use the map
 cam_garage_outdoor = 0  # ~ 1 sec camera
 cam_garage_indoor = 2 
 cam_front_porch = 1
@@ -74,9 +86,10 @@ status_history_dict = {
         {"id" : 2, "name" : "garage",         "history" : {"car" : 0, "person" : 0, "2whlr": 0}},
         {"id" : 3, "name" : "patio",          "history" : {"person" : 0}}
         ] },
-    "cam4" : {"id" : 5, "name" : "garage zoom", "regions" : [ 
+    "cam5" : {"id" : 5, "name" : "garage zoom", "regions" : [ 
         {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0}},
-        {"id" : 1, "name" : "street",         "history" : {"car" : 0, "person" : 0}},
+        {"id" : 1, "name" : "left street",    "history" : {"car" : 0, "person" : 0}},
+        {"id" : 1, "name" : "right street",   "history" : {"car" : 0, "person" : 0}},
         {"id" : 2, "name" : "back door",      "history" : {"car" : 0, "person" : 0}}
         ] }
 }
@@ -158,10 +171,6 @@ def get_history_np_row(map_dict, camera_id, region_id, history_catagory):
     np_row = region["history"][history_catagory]
     return np_row
 
-
-
-
-
 # singleton - Status
 # - we want only one object/instance of this class
 # TODO
@@ -181,6 +190,8 @@ class Status:
         Status.__instance.history = np.full([settings.history_row_count, history_depth], 0, dtype=int)
         # set the timestamp
         Status.__instance.history[0,0] = int(time.time() * 10)
+        Status.__instance.person_front = 0
+        Status.__instance.person_back = 0
 
         return Status.__instance
 
@@ -188,7 +199,22 @@ class Status:
         status_string = f'Status Object- time: {self.timestamp}\n{self.garage_status}'
         return status_string
 
-    def update_from_detection(self, detection):
+    def update_person_front(self):
+        region_ids = [2,3,4,5,6,7]
+        person_array = np.empty((0,history_depth), int)         # empty, correct shape
+        # these might be or night NOT be consecutive, so append 1 row at a time
+        for i, region_id in enumerate(region_ids):
+            row_num_start = get_history_np_row(settings.configured_history_map, camera_dict_name["cam_front_porch"], region_id, "person")
+            row_num_end = row_num_start + 1
+            person_array = np.append(person_array, self.history[row_num_start:row_num_end, :], axis=0)
+
+        log.info(f'status.update_person_front: {person_array.shape}')
+        return self.person_front
+
+    def update_person_back(self):
+        return self.person_back
+
+    def update_from_detection(self, det):
         '''
         called by image_consumer (per camera:region)
         '''
@@ -196,34 +222,34 @@ class Status:
         # - - - meta data - - - 
         #
         # color (vs infrared gray scale)
-        i = color_code_start + detection.camera_id
-        history[0, i] = detection.is_color
+        i = status_meta_index["color_code_start"] + det.camera_id
+        self.history[0, i] = det.is_color
         # last camera image timestamp
-        last_camera_image_timestamp_index = last_camera_image_timestamp_sart + det.camera_id
-        history[0, last_camera_image_timestamp_index] = det.image_time
+        last_camera_image_timestamp_index = status_meta_index["last_camera_image_timestamp_start"] + det.camera_id
+        self.history[0, last_camera_image_timestamp_index] = det.image_time
 
         # - - - update status history - - - 
         #  below, these functions will determine the status
         #  and these functions call update_history to update the corresponding history row (stack)
+        if det.model_inference is not None:
+            # garage indoor
+            if det.camera_id in (cam_garage_outdoor, cam_garage_indoor):
+                garage_status.update_garage_status(self, det)
 
-        # garage indoor
-        if detection.camera_id in (cam_garage_outdoor, cam_garage_indoor):
-            garage_status.update_garage_status(self, detection)
-
-        # person - is a person present
-        # - currently applicable to all cameras, all regions
-        person_status, person_array_shape = person.get_person_status(self, detection)
+            # person - is a person present
+            # - currently applicable to all cameras, all regions
+            person_status = person.get_person_status(self, det)
 
 
-        # car - is a car present
-        # - does not apply to indoor garage camera #2
-        if detection.camera_id in (0, 1, 3, 4):
-            car_status, car_array_shape = car.get_car_status(self, detection)
+            # car - is a car present
+            # - does not apply to indoor garage camera #2
+            if det.camera_id in (0, 1, 3, 4):
+                car_status, car_array_shape = car.get_car_status(self, det)
 
-        # 2 wheeler (bicycle or motorcycle) - is present
-        # - ignore indoor garage
-        if detection.camera_id in (0, 1, 3, 4):
-            two_whlr_status, two_whlr_array_shape = two_whlr.get_2whlr_status(self, detection)
+            # 2 wheeler (bicycle or motorcycle) - is present
+            # - ignore indoor garage
+            if det.camera_id in (0, 1, 3, 4):
+                two_whlr_status, two_whlr_array_shape = two_whlr.get_2whlr_status(self, det)
 
 
         return self 
@@ -257,9 +283,12 @@ class Status:
         spaces = '                            '
         with settings.safe_print:
             for row_num in history_row_nums:
-                row_desc = settings.row_num_dict[row_num]
-                row_desc_len = len(row_desc)
-                log.info(f'home_status_history[{row_num}] {row_desc} {spaces[0:-row_desc_len]} {self.history[row_num, 0:40].tolist()}')
+                try:
+                    row_desc = settings.row_num_dict[row_num]
+                    row_desc_len = len(row_desc)
+                    log.info(f'home_status_history[{row_num}] {row_desc} {spaces[0:-row_desc_len]} {self.history[row_num, 0:40].tolist()}')
+                except KeyError:
+                    log.error(f'status/log_history - KeyError: {row_num}')
         return
 
     def save_status(self, status_path):
@@ -268,5 +297,5 @@ class Status:
         # file name
         base_name = '{}'.format(self.history[0,0])   
         status_name = os.path.join(status_path, base_name + '.npy')
-        numpy.save(status_name, self.history)
+        np.save(status_name, self.history)
         return status_name

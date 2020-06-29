@@ -86,7 +86,7 @@ OBJ_GROUP_OF = 1
 OBJ_WEIGHT = 1
 
 
-NUM_SHARDS = 60
+NUM_SHARDS = 40
 
 # get a list of ALL tfrecord files - from a list of directories
 def get_all_tfrecords(path_list):
@@ -147,8 +147,10 @@ def voc_to_tfrecord_file(image_root,
                     training_split_tuple,
                     include_classes = "all",
                     exclude_truncated=False,
-                    exclude_difficult=False):
+                    exclude_difficult=False,
+                    num_shards=NUM_SHARDS):
     # this uses only TensorFlow libraries
+    print (f'num_shards: {num_shards}')
     # - no P Ferrari classes
 
     label_map = get_label_map_dict(label_map_file, 'value')
@@ -171,7 +173,7 @@ def voc_to_tfrecord_file(image_root,
         print (" -- images", len(image_list), " writing to:", output_path)
         with contextlib2.ExitStack() as tf_record_close_stack:
             output_tfrecords = tf_record_creation_util.open_sharded_output_tfrecords(
-                tf_record_close_stack, output_path, NUM_SHARDS)
+                tf_record_close_stack, output_path, num_shards)
 
             image_count = 0   # simple image cuonter
             class_dict = {}   # dict to keep class count
@@ -311,14 +313,12 @@ def voc_to_tfrecord_file(image_root,
                 tf_example = tf.train.Example(features=features)
                 # write to the tfrecords writer
                 # tf_writer.write(tf_example.SerializeToString())
-                output_shard_index = index % NUM_SHARDS
+                output_shard_index = index % num_shards
                 output_tfrecords[output_shard_index].write(tf_example.SerializeToString())
                 image_count = image_count + 1
 
         # end of loop
-        # TODO - shard on larger sets
-        #        https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/using_your_own_dataset.md
-        # tf_writer.close()                   # close the writer
+
         print ('     image count:', image_count, "  class_count:", class_dict)
     return 1
 

@@ -113,6 +113,7 @@ def image_consumer(consumer_id,
               
                 # check for new detections
                 # - per camera - per region 
+                det = None              # you need None, if saving inferences (no detection) on all images
                 if num_detections > 0:
                     # need bbox_array as a numpy
                     log.debug(f'image_consumer#{consumer_id} - cam#{camera_id}  reg#{region_id}  bbox_stack_list len: {len(bbox_stack_lists)}')
@@ -121,13 +122,14 @@ def image_consumer(consumer_id,
                     with settings.safe_stack_update:
                         new_objects, dup_objects = tensorflow_util.identify_new_detections(image_time,
                             settings.iou_threshold, camera_id, region_id, inf.bbox_array, bbox_stack_lists[camera_id], bbox_push_lists[camera_id])
-                    # D E T E C T I O N  class
-                    # - create a detection & update home_status
-                    det = inference.RegionDetection(image_time, camera_id, region_id, is_color, new_objects, dup_objects, inf)
-                    with settings.safe_status_update:
-                        # - - - - - - - UPDATING status & history - - - - - - - -
-                        #   called as a per camera:region function
-                        settings.home_status.update_from_detection(det)
+                # D E T E C T I O N  class
+                # - create a detection & update home_status
+                det = inference.RegionDetection(image_time, camera_id, region_id, is_color, num_detections, new_objects, inf)
+                # update regardless
+                with settings.safe_status_update:
+                    # - - - - - - - UPDATING status & history - - - - - - - -
+                    #   called as a per camera:region function
+                    settings.home_status.update_from_detection(det)
                 
                 # display - 
                 # NOTE - Displaying w/ cv2 in multi-threads is a problem!!   1 consumer only if you want to enable this
@@ -151,16 +153,20 @@ def image_consumer(consumer_id,
                 # S A V E
                 # - set up a couple of rules for saving
                   # default
-                rule_num = 2   # priority camera/region w/ new objects
-                image_name, annotation_name = inference.get_save_path(rule_num, det)
-                log.info(f'image_consumer/get_save_path: {save_path}')
+                rule_num = 2    # priority camera/region w/ new objects
+                image_name, annotation_name = inference.get_save_detection_path(rule_num, det, 
+                    settings.image_path, settings.annotation_path)
+                log.info(f'image_consumer/get_save_path: {image_name} {annotation_name}')
+                saved = False   # default
 
                 if image_name is not None:
                     # original image - h: 480  w: 640
                     saved = True
                     cv2.imwrite(image_name, orig_image)
                     # this function generates & saves the XML annotation
-                    annotation_xml = annotation.inference_to_xml(settings.image_path, image_name,orig_image_dim, detected_objects, settings.annotation_path )
+                    # - if no detection, just save image, skip the annotation - there is no annotation
+                    if det is not None:
+                        annotation_xml = annotation.inference_to_xml(settings.image_path, image_name,orig_image_dim, detected_objects, settings.annotation_path )
             
                 with settings.safe_print:
                     log.info(
