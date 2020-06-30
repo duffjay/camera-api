@@ -17,7 +17,13 @@ pip install boto3
 pip install tf_slim  
 pip install PySocks  
 pip install requests  
+pip install hueber
 
+
+## CUDA 10.0 + cuDNN
+Make sure you update ./bashrc  
+$LD_LIBRARY_PATH  
+/usr/local/cuda->cuda-10.0  
 
 
 Tensorflow or just the TFLite Interpreter?  Well, you will be using a lot of tf.* utilities  
@@ -27,6 +33,17 @@ if 8100 - you have an old CPU - you need special TF build - get it off of jmduff
 tensorflow 1.15 required - or you'll get a graph error (incompatible versions)  
 python 3.6  
 pip install tensorflow-1.15.2-cp36-cp36m-linux_x86_64.whl   
+
+### XPS 8930
+CUDA 10.0 & cuDNN 7.6.5.32
+pip install tensorflow-gpu==1.15  
+CPU ~ 40%, GPU ~ 40%  
+
+### Inspiron
+CUDA 10.0 & cuDNN 7.6.5.32
+conda activate security (tf 1.15)  
+CPU ~ 60%, GPU ~ 40%  
+
 
 intall kernel on Jupyter:  
 python -m ipykernel install --user --name=security  
@@ -90,4 +107,11 @@ But, I have GPUs.   Going to frozen graph - Advantages:
 
 While migrating to frozen graph - I migrated to multi-process (1 process/ camera).   And things got messy and disorganized.
 
+## Install Reolink API
+ 
+ git clone https://github.com/Benehiko/ReolinkCameraAPI.git  
+ 
+## Install Hue API
 
+pip install hueber
+git clone https://github.com/mbaltrusitis/hueber.git

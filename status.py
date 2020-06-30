@@ -110,7 +110,13 @@ status_meta_index  = {
                                                 # reserve 10    
     "last_recognized_face_timestamp" : 22,
     "last_notification_timestamp" : 23,
-    "last_notification_event" : 24
+    "last_notification_event" : 24,
+    
+    "is_day" : 25,
+
+    "person_front_door" : 26,
+    "person_front_door_timestamp" : 27,
+    "no_person_front_door_timestamp" : 28,
     }
 
 
@@ -199,6 +205,31 @@ class Status:
         status_string = f'Status Object- time: {self.timestamp}\n{self.garage_status}'
         return status_string
 
+    def update_is_day(self):
+        '''
+        look at camera color codes (1/c == color, g == grayscale)
+        update meta row to show if it's day (1) or night
+        '''
+        color_code_idx_start = status_meta_index["color_code_start"]
+        color_code_idx_end = color_code_idx_start + 10
+        color_array = self.history[0, color_code_idx_start:color_code_idx_end]
+        unique, counts = np.unique(color_array, return_counts=True)         # get counts of 0's and 1's
+        color_counts = dict(zip(unique, counts))                            # make a dict
+        
+        # first time through, all 0's, no 1's
+        # - so you need to count NOT 0s
+        # - some empty camera slots will always be 0
+        if color_counts[0] < 6:
+            self.history[0, status_meta_index["is_day"]] = 1
+        else:
+            self.history[0, status_meta_index["is_day"]] = 0
+
+        log.info(f'status.update_is_day - color: {color_array} night vision: {color_counts[0]}'
+            f' history[{status_meta_index["is_day"]}] = {self.history[0, status_meta_index["is_day"]]}'
+            )
+
+        return self.history[status_meta_index["is_day"]]
+
     def update_person_front(self):
         region_ids = [2,3,4,5,6,7]
         person_array = np.empty((0,history_depth), int)         # empty, correct shape
@@ -208,8 +239,25 @@ class Status:
             row_num_end = row_num_start + 1
             person_array = np.append(person_array, self.history[row_num_start:row_num_end, :], axis=0)
 
-        log.info(f'status.update_person_front: {person_array.shape}')
-        return self.person_front
+        # 1 == person detected
+        unique, counts = np.unique(person_array, return_counts=True)         # get counts of 0's and 1's
+        person_counts = dict(zip(unique, counts))                            # make a dict
+        
+        # first time through, all 0's, no 1's
+        # - so you need to count NOT 0s
+        # - some empty camera slots will always be 0
+        row_count, col_count = person_array.shape
+        threshold = int((row_count * col_count) - 10)   # if person is in 10 regional detections
+        if person_counts[0] < threshold:
+            self.history[0, status_meta_index["person_front_door"]] = 1
+        else:
+            self.history[0, status_meta_index["person_front_door"]] = 0
+
+        log.info(f'status.update_person_front: {person_array.shape}'
+            f' threshold: {threshold}'
+            f' NO person detected count: {person_counts[0]}'
+            f' history[{status_meta_index["person_front_door"]}] = {self.history[0, status_meta_index["person_front_door"]]}')
+        return self.history[0, status_meta_index["person_front_door"]]
 
     def update_person_back(self):
         return self.person_back

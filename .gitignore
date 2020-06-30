@@ -136,5 +136,11 @@ jpeg_images/*.jpg
 annotation/*.xml
 trash/*.xml
 trash/*.jpg
+tensorflow.log*
+security_app.log*
+faces/*.jpg
+faces/*.json
+
+status/*.npy
 
 *.tar.gz

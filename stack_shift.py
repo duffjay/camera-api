@@ -71,6 +71,7 @@ def stack_shift(home_status):
             sleep_time = 0.0
 
         # update status - every second
+        home_status.update_is_day()
         home_status.update_person_front()
 
         log.info(f'time_shift -- sleep:  {time.time()}  {start}  elapsed: {elapsed} sleep: {sleep_time}')

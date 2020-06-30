@@ -8,8 +8,7 @@ import settings
 
 log = logging.getLogger(__name__)
 
-# Pull images off the imageQueue
-# - produce faceQueue (check the faces in the images)
+
 def process_front_lights(home_status):
 
     log.info(f'PROCESS_FRONT_LIGHTS started')
