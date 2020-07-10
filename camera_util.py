@@ -3,6 +3,9 @@ import cv2
 import imutils
 
 import io
+import os
+
+
 import random
 import string
 import urllib
@@ -11,6 +14,7 @@ import urllib
 import time
 import logging
 
+import cv2
 from PIL import Image
 
 import settings
@@ -259,7 +263,7 @@ def extract_regions(config, camera_id, image, is_color):
 #   get frame
 #   extract regions
 #   return numpy array [regions, 480, 640, 3]
-def get_camera_regions(camera_id, config):
+def get_camera_regions(camera_id, config, stream):
     start = time.perf_counter()
     
     name = config['name']
@@ -276,6 +280,12 @@ def get_camera_regions(camera_id, config):
         is_color = get_color(full_image)
         # rotate the image
         rot_full_image = imutils.rotate(full_image, rotation_angle)
+        # if streaming is on for this camera, store the full image
+        if stream:
+            cam_dir = f'cam{camera_id}'
+            filename = f'{int(time.time())}.jpg'
+            full_path = os.path.join("stream", cam_dir,  filename)
+            cv2.imwrite(full_path, full_image)
         # print ("Camera: {} {} -- Frame Captured".format(name, start))
         np_images = extract_regions(config, camera_id, rot_full_image, is_color)
     else:

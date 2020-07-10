@@ -91,6 +91,12 @@ status_history_dict = {
         {"id" : 1, "name" : "left street",    "history" : {"car" : 0, "person" : 0}},
         {"id" : 1, "name" : "right street",   "history" : {"car" : 0, "person" : 0}},
         {"id" : 2, "name" : "back door",      "history" : {"car" : 0, "person" : 0}}
+        ] },
+    "cam6" : {"id" : 6, "name" : "side yard", "regions" : [ 
+        {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0}},
+        {"id" : 1, "name" : "street",         "history" : {"car" : 0, "person" : 0}},
+        {"id" : 1, "name" : "power meter",    "history" : {"car" : 0, "person" : 0}},
+        {"id" : 2, "name" : "windows",        "history" : {"car" : 0, "person" : 0}}
         ] }
 }
 
@@ -115,8 +121,8 @@ status_meta_index  = {
     "is_day" : 25,
 
     "person_front_door" : 26,
-    "person_front_door_timestamp" : 27,
-    "no_person_front_door_timestamp" : 28,
+    "person_front_door_timestamp" : 27,         # timestamp LAST detected
+    "no_person_front_door_timestamp" : 28,      # Transition (1 -> 0) timestamp 
     }
 
 
@@ -249,14 +255,17 @@ class Status:
         row_count, col_count = person_array.shape
         threshold = int((row_count * col_count) - 10)   # if person is in 10 regional detections
         if person_counts[0] < threshold:
+            # person present: update status and timestamp
             self.history[0, status_meta_index["person_front_door"]] = 1
+            self.history[0, status_meta_index["person_front_door_timestamp"]] = int(time.time())
         else:
             self.history[0, status_meta_index["person_front_door"]] = 0
 
         log.info(f'status.update_person_front: {person_array.shape}'
             f' threshold: {threshold}'
             f' NO person detected count: {person_counts[0]}'
-            f' history[{status_meta_index["person_front_door"]}] = {self.history[0, status_meta_index["person_front_door"]]}')
+            f' history[{status_meta_index["person_front_door"]}] = {self.history[0, status_meta_index["person_front_door"]]}'
+            f' timestamp: {self.history[0, status_meta_index["person_front_door_timestamp"]]}')
         return self.history[0, status_meta_index["person_front_door"]]
 
     def update_person_back(self):

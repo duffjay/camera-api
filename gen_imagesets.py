@@ -112,9 +112,27 @@ def gen_verified_lists(annotation_root):
     print ("-- TOTAL list of NON verified annotations -- count {}".format(non_verified_list_count))
     return total_verified_list, total_non_verified_list
 
+#
+def get_directory_retention_pct(retain_dict, annotation_dir):
+    dir_only = os.path.split(annotation_dir)[-1]
+    pct = retain_dict.get(dir_only, None)
+    # if the dir wasn't there - use the default
+    if pct == None:
+        pct = retain_dict.get('default', None)
+        # if no default - really that's a configuation error
+        if pct == None:
+            print ("Error - the directory retention dict should have a default value")
+            raise KeyError(f'{annotation_dir} s not present in {retain_dict} and no default value present')
+    return pct
+
+def apply_retention_pct(image_list, list_size, retain_pct):
+    retain_count = int(list_size * retain_pct/100)
+    image_list = random.sample(image_list, retain_count)
+    return image_list, len(image_list)
+
 # create the image set
 #     
-def gen_imageset_list(annotation_root, training_split_tuple):
+def gen_imageset_list(annotation_root, training_split_tuple, retain_dict=None):
     '''
     generate three (3) image set lits (train, val, test)
     from the sum of directories in the annotation dir list
@@ -133,12 +151,20 @@ def gen_imageset_list(annotation_root, training_split_tuple):
     total_verified_list = []  # empty list
     # loop thru each annotation dir in the list
     for i, annotation_dir in enumerate(annotation_subdirectories):
+        print (f'PROCESSING -- {annotation_dir}')
         single_verified_list, single_nonverified_list  = group_annotation_list(annotation_dir)
+        # apply retention percentage
+        retain_pct = get_directory_retention_pct(retain_dict, annotation_dir)
         single_verified_count = len(single_verified_list)
         single_nonverified_count = len(single_nonverified_list)
+        print (f'  found verified {single_verified_count}  non-verified: {single_nonverified_count}')
+        single_verified_list, single_verified_count = apply_retention_pct(single_verified_list, single_verified_count, retain_pct)
+        print (f'  retained  {single_verified_count}')
         total_verified_list.extend(single_verified_list)
-        print ("   making list of verified annotations -- verified count {} / non {} in {}".format(
-            single_verified_count, single_nonverified_count, annotation_dir))
+        print ("   making list of verified annotations -- verified count {} in {}".format(
+            single_verified_count, annotation_dir))
+        
+
     
     verified_list_count = len(total_verified_list)
     print ("-- TOTAL list of verified annotations -- verfied count {}".format(verified_list_count))

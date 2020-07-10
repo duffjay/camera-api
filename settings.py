@@ -7,6 +7,7 @@ import numpy as np
 
 import gen_util
 import aws_util
+import hue_util
 
 # for tracking status
 import status
@@ -112,7 +113,22 @@ def init(config_filename):
     # - - - - - - - - 
     # H U E  
     #  light control
+    #  !!! - to update, you need to get_bridge each time (which gets you the bridge data)
 
     global hue_bridge_ip, hue_bridge_username
     hue_bridge_ip = config['hue_bridge_ip']
     hue_bridge_username = config['hue_bridge_username']
+
+    global hue, lights, light_groups
+    # get the bridge
+    hue = hue_util.get_bridge(hue_bridge_ip, hue_bridge_username)
+    lights = hue_util.get_lights(hue)
+    light_groups = hue_util.get_groups(hue)
+
+    global front_porch_group_id, bar_group_id, sunroom_group_id
+    front_porch_group_id = hue_util.get_group_id(light_groups, "Front Porch")
+    bar_group_id = hue_util.get_group_id(light_groups, "Bar")
+    sunroom_group_id = hue_util.get_group_id(light_groups, "sunroom")
+
+    global light_group_status
+    light_group_status = {"front_porch" : 0, "bar" : 0, "sunroom" : 0}

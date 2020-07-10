@@ -34,10 +34,13 @@ def compute_sleep_time(frame_elapsed_time, qsize, camera_id):
     return sleep_time
 
 def image_producer(camera_id, camera_config, camera_snapshot_times):
-    
+    stream = False
+    if camera_config["stream"] == 1:
+        stream = True
+
     while True:
         start_time = time.perf_counter()
-        camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config)
+        camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config, stream)
         snapshot_elapsed =  time.perf_counter() - camera_snapshot_times[camera_id]      # elapsed time between snapshots
         camera_snapshot_times[camera_id] = time.perf_counter()                          # update the time == start time for the next snapshot
         # pushes to the stack if there was a frame captured
@@ -45,13 +48,14 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
             image_time = int(time.time() * 10)  # multiply time x 10 to pick up 10ths
             settings.imageQueue.put((camera_id, camera_name, image_time, np_images, is_color))
             with settings.safe_print:
-                log_msg = "  IMAGE-PRODUCER:>>{} np_images: {}  {:02.2f} secs".format(camera_name, np_images.shape, snapshot_elapsed)
+                log_msg = "  IMAGE-PRODUCER:>>{} np_images: {}  {:02.2f} secs  stream: {}".format(camera_name, np_images.shape, snapshot_elapsed, stream)
                 log.info(log_msg)
         else:
             with settings.safe_print:
                 log_msg = "  IMAGE-PRODUCER:--{} np_images: None".format(camera_name)
                 log.info(log_msg)
         
+
         # need a sleep time to slow down the frame rate if the queue is backing up
         frame_elapsed_time = time.perf_counter() - start_time
         sleep_time = compute_sleep_time(frame_elapsed_time, settings.imageQueue.qsize(), camera_id)

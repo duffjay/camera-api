@@ -140,15 +140,19 @@ def get_image_annotation_paths(image_list_entry):
 # this has been changed 20200501
 #   image_list is now a full path - because sharding was required
 #   the image_list item == the annotation path (not the jpeg path)
+# dir_retain_pct_list == a list of percentages to keep from each directory
+#   "default" : 0 or 100 or whaever, this is used by default (i.e. key error)
 def voc_to_tfrecord_file(image_root,
                     annotation_root,
                     label_map_file,
                     tfrecord_dir,
                     training_split_tuple,
+                    dir_retain_dict,
                     include_classes = "all",
                     exclude_truncated=False,
                     exclude_difficult=False,
-                    num_shards=NUM_SHARDS):
+                    num_shards=NUM_SHARDS
+                    ):
     # this uses only TensorFlow libraries
     print (f'num_shards: {num_shards}')
     # - no P Ferrari classes
@@ -156,7 +160,7 @@ def voc_to_tfrecord_file(image_root,
     label_map = get_label_map_dict(label_map_file, 'value')
     # label_map_dict = invert_dict(origin_label_map_dict)    # we need the id, not the name as the key
 
-    train_list, val_list, test_list = gen_imageset_list(annotation_root, training_split_tuple)
+    train_list, val_list, test_list = gen_imageset_list(annotation_root, training_split_tuple, retain_dict=dir_retain_dict)
 
     print (label_map)
 

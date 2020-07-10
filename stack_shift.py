@@ -7,6 +7,8 @@ import numpy as np
 import traceback
 
 # my stuff
+import lights
+
 import settings
 
 log = logging.getLogger(__name__)
@@ -73,6 +75,9 @@ def stack_shift(home_status):
         # update status - every second
         home_status.update_is_day()
         home_status.update_person_front()
+
+        # update lights
+        lights.update_lights(home_status)
 
         log.info(f'time_shift -- sleep:  {time.time()}  {start}  elapsed: {elapsed} sleep: {sleep_time}')
         time.sleep(sleep_time)

@@ -10,7 +10,7 @@ def main():
     settings.init(config_filename)
 
     # get the bridge
-    hue = hue_util.get_bridge(settings.hue_bridge_ip, settings.hue_bridge_username)
+    hue = settings.hue
     print ("logged into the HUE bridge successfully")
 
     # get the collection of lights
@@ -33,7 +33,13 @@ def main():
     # turn on a group
     
     #group_bar = hue_util.turn_on_group(group_bar_id, bri)
-    
+    # test front porch
+    front_porch_group_id = hue_util.get_group_id(groups, "Front Porch")
+    print (f'Front Porch: {front_porch_group_id}')
+
+    front_porch_group = groups[front_porch_group_id]
+    print (front_porch_group.data)
+    print (f"on/off: {front_porch_group.data['action']['on']}  brightness: {front_porch_group.data['action']['bri']}")
 
 
 

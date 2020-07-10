@@ -117,16 +117,7 @@ def get_save_detection_path(rule_num, det, image_path, annotation_path):
     }
 
     # TODO
-    # -- i think you can delete this once you've tested it
-    # # check for rule 3 - stream, if no detection, you need a simpler name
-    # # - if rule 3 & a detection, you can generate full names
-    # if rule_num == 3 and det is None:
-    #     # there is no detection, so you don't know camera or region
-    #     # - unlikely, temporary only situation - so not making this complicated
-    #     # - make this unique by using a full time stamp + stream
-    #     base_name = int(time.time() * 100)
-    #     image_name = f'{base_name}-stream.jpg'
-    #     return image_name, None
+    # make priority class name based form the map or something
 
 
     # # if the rule is NOT 3 (only rule that allows no detection)
