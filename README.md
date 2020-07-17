@@ -2,10 +2,14 @@
 RESTful API for Amcrest cameras
 
 ## Python 3.6
+
+USE conda install -- NOT pip install  
+
 conda install pip # might have an issue with conda
 
 pip install flask  
 pip install opencv-python  
+  conda install py-opencv  
 pip install pillow  
 pip install bs4  
 pip install lxml  
@@ -72,6 +76,12 @@ You may need to run:
   python test_tf_inference.py  
 just to compile things - the security program may be slow starting the first time.
 
+## Subdirectories
+
+you may need to create the following subdirectories:  
+- faces/                images with faces, going to Rekognition  
+- snapshot/             camera images and inference.xml  
+- stream/cam0 - camN    subdirectories if you stream
 ## Generating Images
 
 python security.py app_reolink12_tensorflow.json  

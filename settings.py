@@ -76,6 +76,10 @@ def init(config_filename):
     global iou_threshold
     iou_threshold = 0.8
 
+    # keep inference threshold
+    global inference_threshold
+    inference_threshold = config["inference_threshold"]
+
     # universal sleep factor
     # - base multiplier to make the cameras sleep
     #   increase this if the imageQueue gets too big

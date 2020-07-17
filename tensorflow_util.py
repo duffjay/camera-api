@@ -40,6 +40,7 @@ from object_detection.utils.np_box_ops import iou
 import label_map_util
 import inference
 import status
+import settings
 
 # main logger
 log = logging.getLogger(__name__)
@@ -249,7 +250,7 @@ def send_image_to_tf_sess(image_np_expanded, sess, tensor_dict, image_tensor):
         output_dict['detection_masks'] = output_dict['detection_masks'][0]
     
     # Convert good detections to ModelInference object
-    threshold = 0.7
+    threshold = settings.inference_threshold
     inf = convert_output_to_inference_object(output_dict, threshold)
     return inf
 
