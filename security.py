@@ -116,7 +116,7 @@ def main():
     #   P R O C E S S    L I G H T S
     #   - front lights (front porch & sunroom)
     #   - back lights (back porch)
-    thread = threading.Thread(target=lights.process_front_lights, args=(settings.home_status,))
+    thread = threading.Thread(target=lights.update_lights, args=(settings.home_status,))
     thread.daemon = True
     thread.start()
 

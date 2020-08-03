@@ -88,7 +88,7 @@ def main():
 
     for i in range(250):
         start_time = time.perf_counter()  
-        camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config)
+        camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config, False)
         print (" {:04d}  main -- camera: {}  secs: {:02.2f}".format(
             i, camera_name, (time.perf_counter() - start_time)))
         
