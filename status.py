@@ -123,6 +123,12 @@ status_meta_index  = {
     "person_front_door" : 26,
     "person_front_door_timestamp" : 27,         # timestamp LAST detected
     "no_person_front_door_timestamp" : 28,      # Transition (1 -> 0) timestamp 
+    "person_front_door_notif_timestamp" : 29,   # timestamp when notification was sent
+
+    "person_back_door" : 30,
+    "person_back_door_timestamp" : 31,         # timestamp LAST detected
+    "no_person_back_door_timestamp" : 32,      # Transition (1 -> 0) timestamp 
+    "person_back_door_notif_timestamp" : 33   # timestamp when notification was sent
     }
 
 
@@ -236,14 +242,29 @@ class Status:
 
         return self.history[status_meta_index["is_day"]]
 
-    def update_person_front(self):
-        region_ids = [2,3,4,5,6,7]
-        person_array = np.empty((0,history_depth), int)         # empty, correct shape
+    def build_camera_region_history_array(self, camera_id, region_list, detection_class):
+        '''
+        put together lines of history to consolidate into a per camera array
+          camera_id = what camera - use the dict
+          region_list = the list of camera regions that you want to include
+        '''
+        history_array = np.empty((0,history_depth), int)         # empty, correct shape
         # these might be or night NOT be consecutive, so append 1 row at a time
-        for i, region_id in enumerate(region_ids):
-            row_num_start = get_history_np_row(settings.configured_history_map, camera_dict_name["cam_front_porch"], region_id, "person")
+        for i, region_id in enumerate(region_list):
+            row_num_start = get_history_np_row(settings.configured_history_map, camera_id, region_id, detection_class)
             row_num_end = row_num_start + 1
-            person_array = np.append(person_array, self.history[row_num_start:row_num_end, :], axis=0)
+            history_array = np.append(history_array, self.history[row_num_start:row_num_end, :], axis=0)
+
+        return history_array
+
+    def update_person_front(self):
+        '''
+        using the history array, is there a person at the front of house (=1)
+          front door == 1 camera only
+        '''
+        region_list = [2,3,4,5,6,7]                             # region ids on the front camera where a person would be seen
+                                                                # - note, you don't want region 1 == street sidewalk
+        person_array = self.build_camera_region_history_array(camera_dict_name["cam_front_porch"], region_list, "person")
 
         # 1 == person detected
         unique, counts = np.unique(person_array, return_counts=True)         # get counts of 0's and 1's
@@ -269,7 +290,45 @@ class Status:
         return self.history[0, status_meta_index["person_front_door"]]
 
     def update_person_back(self):
-        return self.person_back
+        '''
+        using the history array, is there a person at the back of house (=1)
+          back door == 3 cameras
+        '''
+        # build the contiguous history array
+        # - (3) cameras
+
+        # garage outdoor
+        region_list = [2,3,4,5]                             # omit full and the driveway
+        person_array = self.build_camera_region_history_array(camera_dict_name["cam_garage_outdoor"],region_list, "person")
+        # back porch
+        region_list = [0,1,2,3]                             # omit nothing
+        person_array = np.append(person_array, self.build_camera_region_history_array(camera_dict_name["cam_back_porch"],region_list, "person"), axis=0)
+        # back yard
+        region_list = [0,1,2,3]                             # omit nothing
+        person_array = np.append(person_array, self.build_camera_region_history_array(camera_dict_name["cam_back_yard"],region_list, "person"), axis=0)
+
+        # 1 == person detected
+        unique, counts = np.unique(person_array, return_counts=True)         # get counts of 0's and 1's
+        person_counts = dict(zip(unique, counts))                            # make a dict
+        
+        # first time through, all 0's, no 1's
+        # - so you need to count NOT 0s
+        # - some empty camera slots will always be 0
+        row_count, col_count = person_array.shape
+        threshold = int((row_count * col_count) - 10)   # if person is in 10 regional detections
+        if person_counts[0] < threshold:
+            # person present: update status and timestamp
+            self.history[0, status_meta_index["person_back_door"]] = 1
+            self.history[0, status_meta_index["person_back_door_timestamp"]] = int(time.time())
+        else:
+            self.history[0, status_meta_index["person_back_door"]] = 0
+
+        log.info(f'status.update_person_back: {person_array.shape}'
+            f' threshold: {threshold}'
+            f' NO person detected count: {person_counts[0]}'
+            f' history[{status_meta_index["person_back_door"]}] = {self.history[0, status_meta_index["person_back_door"]]}'
+            f' timestamp: {self.history[0, status_meta_index["person_back_door_timestamp"]]}')
+        return self.history[0, status_meta_index["person_back_door"]]
 
     def update_from_detection(self, det):
         '''

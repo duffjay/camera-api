@@ -73,11 +73,17 @@ def stack_shift(home_status):
             sleep_time = 0.0
 
         # update status - every second
+        # - this updates values in the history meta row
         home_status.update_is_day()
         home_status.update_person_front()
+        home_status.update_person_back()
 
         # update lights
+        # - this will update ALL lights based on status
         lights.update_lights(home_status)
+
+        # send notifications
+        # notification.update
 
         log.info(f'time_shift -- sleep:  {time.time()}  {start}  elapsed: {elapsed} sleep: {sleep_time}')
         time.sleep(sleep_time)
