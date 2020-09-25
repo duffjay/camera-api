@@ -88,7 +88,35 @@ def process_front_lights(is_day, hue, groups, home_status):
             log.info(f'lights.process_front_lights -- response: {response}')
         # else - lights are already off          
     
-    return
+    return 
+
+def process_back_lights(is_day, hue, groups, home_status):
+    '''
+    if NOT is_day
+        if a person is present (home_status)
+        turn the lights up
+    '''
+    print ("*** process back lights ***")
+    back_porch_status = groups[settings.back_porch_group_id].data['action']['on']
+    back_porch_bri = groups[settings.back_porch_group_id].data['action']['bri']
+    is_person_in_back = home_status.history[0, status_meta_index["person_back_door"]]     # is there a person out back
+    log.info(f'lights.process_back_lights  is_day: {is_day}  person present: {is_person_in_back}  lights on: {back_porch_status}  {back_porch_bri}')    
+
+    if is_person_in_back == 1:
+        # if back_porch_status = "True" and front_porch_bri < 200
+        if back_porch_bri < 200:
+            response = hue_util.turn_group_on(groups[settings.back_porch_group_id], bri=254)
+            log.info(f'lights.process_back_lights -- lights turned on')
+            log.info(f'lights.process_back_lights -- response: {response}')
+        # else - lights are already on
+    else:
+        if back_porch_bri > 100:
+            response = hue_util.turn_group_on(groups[settings.back_porch_group_id], bri=77)
+            log.info(f'lights.process_back_lights -- lights turned off')
+            log.info(f'lights.process_back_lights -- response: {response}')
+        # else - lights are already off          
+    
+    return 
 
 def update_lights(home_status):
     log.info(f'lights.update_lights - start: {settings.light_group_status}')
@@ -104,8 +132,11 @@ def update_lights(home_status):
 
         # update front lights
         # -- only if is_day == False
-        if is_day == False:
-            front_light_status = process_front_lights(is_day, hue, groups, home_status)
+        if True:                # use this line for debugging lights during the day
+        # if is_day == False:
+            process_back_lights(is_day, hue, groups, home_status)
+            process_front_lights(is_day, hue, groups, home_status)
+
 
     except Exception as e:
         log.error(f'lights.update_lights - General Exception: {e}')

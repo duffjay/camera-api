@@ -129,8 +129,9 @@ def init(config_filename):
     lights = hue_util.get_lights(hue)
     light_groups = hue_util.get_groups(hue)
 
-    global front_porch_group_id, bar_group_id, sunroom_group_id
+    global front_porch_group_id, back_porch_group_id, bar_group_id, sunroom_group_id
     front_porch_group_id = hue_util.get_group_id(light_groups, "Front Porch")
+    back_porch_group_id = hue_util.get_group_id(light_groups, "back porch")
     bar_group_id = hue_util.get_group_id(light_groups, "Bar")
     sunroom_group_id = hue_util.get_group_id(light_groups, "sunroom")
 

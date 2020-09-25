@@ -262,6 +262,7 @@ class Status:
         using the history array, is there a person at the front of house (=1)
           front door == 1 camera only
         '''
+        # front camera
         region_list = [2,3,4,5,6,7]                             # region ids on the front camera where a person would be seen
                                                                 # - note, you don't want region 1 == street sidewalk
         person_array = self.build_camera_region_history_array(camera_dict_name["cam_front_porch"], region_list, "person")
@@ -275,11 +276,16 @@ class Status:
         # - some empty camera slots will always be 0
         row_count, col_count = person_array.shape
         threshold = int((row_count * col_count) - 10)   # if person is in 10 regional detections
+        prev_status = self.history[0, status_meta_index["person_front_door"]]
         if person_counts[0] < threshold:
             # person present: update status and timestamp
+            if prev_status == 0:
+                log.info(f'status.update_person_front TRANSITION - person appeared {int(time.time())}')
             self.history[0, status_meta_index["person_front_door"]] = 1
             self.history[0, status_meta_index["person_front_door_timestamp"]] = int(time.time())
         else:
+            if prev_status == 1:
+                log.info(f'status.update_person_front TRANSITION - person gone {int(time.time())}')
             self.history[0, status_meta_index["person_front_door"]] = 0
 
         log.info(f'status.update_person_front: {person_array.shape}'
@@ -316,11 +322,16 @@ class Status:
         # - some empty camera slots will always be 0
         row_count, col_count = person_array.shape
         threshold = int((row_count * col_count) - 10)   # if person is in 10 regional detections
+        prev_status = self.history[0, status_meta_index["person_back_door"]]
         if person_counts[0] < threshold:
             # person present: update status and timestamp
+            if prev_status == 0:
+                log.info(f'status.update_person_back TRANSITION - person appeared {int(time.time())}')
             self.history[0, status_meta_index["person_back_door"]] = 1
             self.history[0, status_meta_index["person_back_door_timestamp"]] = int(time.time())
         else:
+            if prev_status == 1:
+                log.info(f'status.update_person_back TRANSITION - person gone {int(time.time())}')
             self.history[0, status_meta_index["person_back_door"]] = 0
 
         log.info(f'status.update_person_back: {person_array.shape}'
