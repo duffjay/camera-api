@@ -23,7 +23,8 @@ camera_dict_name = {
     "cam_back_porch"     : 3,
     "cam_back_yard"      : 4,
     "cam_garage_zoom"    : 5,
-    "cam_side_yard"      : 6
+    "cam_side_yard"      : 6,
+    "cam_honeywell"      : 7
 }
 
 # TODO - delete this, use the map
@@ -34,6 +35,7 @@ cam_back_porch = 3
 cam_back_yard = 4
 cam_garage_zoom = 5
 cam_side_yard = 6
+cam_honeywll = 7
 
 unknown = -1
 
@@ -97,6 +99,12 @@ status_history_dict = {
         {"id" : 1, "name" : "street",         "history" : {"car" : 0, "person" : 0}},
         {"id" : 1, "name" : "power meter",    "history" : {"car" : 0, "person" : 0}},
         {"id" : 2, "name" : "windows",        "history" : {"car" : 0, "person" : 0}}
+        ] },
+    "cam7" : {"id" : 7, "name" : "honeywell1", "regions" : [ 
+        {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0}},
+        {"id" : 1, "name" : "street",         "history" : {"car" : 0, "person" : 0}},
+        {"id" : 1, "name" : "driveway",       "history" : {"car" : 0, "person" : 0}},
+        {"id" : 2, "name" : "porch",        "history" : {"car" : 0, "person" : 0}}
         ] }
 }
 

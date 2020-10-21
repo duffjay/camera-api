@@ -187,6 +187,17 @@ def get_reolink_url(scheme, ip):
     url = f"{scheme}://{ip}/cgi-bin/api.cgi"
     return url
 
+def get_honeywell_rtsp(config):
+    '''
+    construct Honeywell rtsp
+    '''
+    usr = config['username']
+    pw = config['password']
+    ip = config['ip']
+    url = f"rtsp://{usr}:{pw}@{ip}:554/live.sdp"
+    return url
+
+
 def get_reolink_snapshot(url, username, password):
     '''
     return a snapshot from the camera
@@ -244,8 +255,11 @@ def extract_regions(config, camera_id, image, is_color):
         dim = (width, height)
         # resize image
         resized_image = cv2.resize(regional_image, dim, interpolation = cv2.INTER_AREA)
+
         #  auto correct (but not the raw full image - its already correct)
-        if region_id > 0:
+        #  !!! Auto Correct is effectively disabled with > 20 (no camera will have 20 regions)
+        #      there is some problem with the Honeywell image - axis 7 ???
+        if region_id > 20:
             clip_hist_percent = 10
             resized_image, alpha, beta = automatic_brightness_and_contrast(resized_image, camera_id, region_id, is_color)
         # reshape to (1,480,640,3)
@@ -257,6 +271,45 @@ def extract_regions(config, camera_id, image, is_color):
             np_images = np.append(np_images, np_image, 0)
 
     return np_images
+
+# Verson 2 - for stream
+
+
+def get_camera_regions_from_full(full_image, camera_id, config, stream):
+    '''
+    get the regions from a full image
+      frame == full_image
+    '''
+    start = time.perf_counter()
+    # config stuff
+    name = config['name']
+    rotation_angle = int(config['rotation_angle'])
+    
+    # if the image exists..
+    if full_image is not None:
+        is_color = get_color(full_image)
+        # rotate the image
+        rot_full_image = imutils.rotate(full_image, rotation_angle)
+        # if streaming is on for this camera, store the full image
+        if stream:
+            cam_dir = f'cam{camera_id}'
+            filename = f'{int(time.time())}.jpg'
+            full_path = os.path.join("stream", cam_dir,  filename)
+            cv2.imwrite(full_path, full_image)
+        # print ("Camera: {} {} -- Frame Captured".format(name, start))
+        np_images = extract_regions(config, camera_id, rot_full_image, is_color)
+    else:
+        log.warning(f'Camera: {name} {start} -- snapshot timeout')
+        np_images = None
+        is_color = 0
+    return name, np_images, is_color
+
+def get_camera_full(video_stream):
+    ret, frame = video_stream.read()
+    return frame
+
+
+
 # 
 #
 # Given camera config
@@ -295,7 +348,20 @@ def get_camera_regions(camera_id, config, stream):
     
     return name, np_images, is_color
 
+# moving to video stream functionality for Honeywell
+#
 
+
+
+def open_video_stream(camera_id, config, stream):
+    # Honeywell
+    if config['mfr'] == "Honeywell":
+        url = get_honeywell_rtsp(config)            # url == the rtsp url
+        video_stream = cv2.VideoCapture(url)
+    # Reolink
+
+
+    return video_stream
 
 #
 # Optical Zoom

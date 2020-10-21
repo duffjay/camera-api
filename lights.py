@@ -96,7 +96,7 @@ def process_back_lights(is_day, hue, groups, home_status):
         if a person is present (home_status)
         turn the lights up
     '''
-    print ("*** process back lights ***")
+
     back_porch_status = groups[settings.back_porch_group_id].data['action']['on']
     back_porch_bri = groups[settings.back_porch_group_id].data['action']['bri']
     is_person_in_back = home_status.history[0, status_meta_index["person_back_door"]]     # is there a person out back

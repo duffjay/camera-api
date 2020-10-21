@@ -38,9 +38,24 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
     if camera_config["stream"] == 1:
         stream = True
 
+    # if Honeywell, open the video stream
+    if camera_config['mfr'] == 'Honeywell':
+        video_stream = camera_util.open_video_stream(camera_id, camera_config, stream)
+
     while True:
         start_time = time.perf_counter()
-        camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config, stream)
+
+        # Honeywell
+        if camera_config['mfr'] == 'Honeywell':
+            frame = camera_util.get_camera_full(video_stream)
+            camera_name, np_images, is_color = camera_util.get_camera_regions_from_full(frame, camera_id, camera_config, stream)
+
+        # Reolink
+        if camera_config['mfr'] == 'Reolink':
+            camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config, stream)
+
+
+
         snapshot_elapsed =  time.perf_counter() - camera_snapshot_times[camera_id]      # elapsed time between snapshots
         camera_snapshot_times[camera_id] = time.perf_counter()                          # update the time == start time for the next snapshot
         # pushes to the stack if there was a frame captured
