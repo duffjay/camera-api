@@ -39,20 +39,20 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
         stream = True
 
     # if Honeywell, open the video stream
-    if camera_config['mfr'] == 'Honeywell':
-        video_stream = camera_util.open_video_stream(camera_id, camera_config, stream)
+    # if camera_config['mfr'] == 'Honeywell':
+    video_stream = camera_util.open_video_stream(camera_id, camera_config, stream)
 
     while True:
         start_time = time.perf_counter()
 
         # Honeywell
-        if camera_config['mfr'] == 'Honeywell':
-            frame = camera_util.get_camera_full(video_stream)
-            camera_name, np_images, is_color = camera_util.get_camera_regions_from_full(frame, camera_id, camera_config, stream)
+        # if camera_config['mfr'] == 'Honeywell':
+        frame = camera_util.get_camera_full(camera_id, video_stream)
+        camera_name, np_images, is_color = camera_util.get_camera_regions_from_full(frame, camera_id, camera_config, stream)
 
-        # Reolink
-        if camera_config['mfr'] == 'Reolink':
-            camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config, stream)
+        # Reolink Snapshot
+        # if camera_config['mfr'] == 'Reolink':
+        #     camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config, stream)
 
 
 

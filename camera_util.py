@@ -197,6 +197,17 @@ def get_honeywell_rtsp(config):
     url = f"rtsp://{usr}:{pw}@{ip}:554/live.sdp"
     return url
 
+# https://support.reolink.com/hc/en-us/articles/360007010473-How-to-Live-View-Reolink-Cameras-via-VLC-Media-Player
+# rtsp://admin:password@ip_address:554//h264Preview_01_main
+def get_reolink_rtsp(config):
+    '''
+    construct Reolink rtsp
+    '''
+    usr = config['username']
+    pw = config['password']
+    ip = config['ip']
+    url = f"rtsp://{usr}:{pw}@{ip}:554//h264Preview_01_main"
+    return url
 
 def get_reolink_snapshot(url, username, password):
     '''
@@ -304,8 +315,13 @@ def get_camera_regions_from_full(full_image, camera_id, config, stream):
         is_color = 0
     return name, np_images, is_color
 
-def get_camera_full(video_stream):
-    ret, frame = video_stream.read()
+def get_camera_full(camera_id, video_stream):
+    try:
+        ret, frame = video_stream.read()
+    except Exception as e:
+        print (f'-- get_camera_full: {camera_id} ERROR {e}')
+        traceback.print_exc()
+
     return frame
 
 
@@ -359,8 +375,11 @@ def open_video_stream(camera_id, config, stream):
         url = get_honeywell_rtsp(config)            # url == the rtsp url
         video_stream = cv2.VideoCapture(url)
     # Reolink
+    if config['mfr'] == "Reolink":
+        url = get_reolink_rtsp(config)            # url == the rtsp url
+        video_stream = cv2.VideoCapture(url)
 
-
+    # print (f'Camera Stream: {url}')
     return video_stream
 
 #

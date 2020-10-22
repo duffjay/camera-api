@@ -79,7 +79,7 @@ def main():
     # !!! Cannot display multi-threaded - must have just 1 display !!!
     #     Thus, consumer count must = 1
     #     watch the queue size as it runs
-    consumer_count = 24
+    consumer_count = 128
     for i in range(consumer_count):
         logger.debug(f'Starting Consumer: {i}')
         thread = threading.Thread(target=image_consumer.image_consumer, 

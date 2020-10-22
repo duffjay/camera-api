@@ -96,7 +96,7 @@ def main():
         start_time = time.perf_counter()  
 
         # Honeywell video stream
-        frame = camera_util.get_camera_full(video_stream)
+        frame = camera_util.get_camera_full(camera_id, video_stream)
         camera_name, np_images, is_color = camera_util.get_camera_regions_from_full(frame, camera_id, camera_config, stream)
 
         #camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config, False)
