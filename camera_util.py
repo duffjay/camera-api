@@ -186,6 +186,17 @@ def get_reolink_url(scheme, ip):
     '''
     url = f"{scheme}://{ip}/cgi-bin/api.cgi"
     return url
+# https://support.amcrest.com/hc/en-us/articles/360001211792-RTSP-Stream-URLs-for-NVRs-NVR-
+# rtsp://admin:admin@192.108.1.108:80/cam/realmonitor?channel=1&subtype=1
+def get_amcrest_rtsp(config):
+    '''
+    construct Amcrest rtsp
+    '''
+    usr = config['username']
+    pw = config['password']
+    ip = config['ip']
+    url = f"rtsp://{usr}:{pw}@{ip}:80/cam/realmonitor?channel=1&subtype=1"
+    return url
 
 def get_honeywell_rtsp(config):
     '''
