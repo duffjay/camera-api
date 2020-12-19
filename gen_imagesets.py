@@ -49,13 +49,16 @@ def group_on_verified(dir_path, file_list):
     verified_list = []
     not_list = []
     for file_name in file_list:
-        with open(os.path.join(dir_path, file_name)) as f:
-            soup = BeautifulSoup(f, 'xml')
-            v = soup.findAll("annotation", {"verified" : "yes"})    # v - only if verified = yes
-            if len(v) == 0:
-                not_list.append(os.path.splitext(file_name)[0])   # not used
-            else: 
-                verified_list.append(os.path.splitext(file_name)[0])
+        try:
+            with open(os.path.join(dir_path, file_name)) as f:
+                soup = BeautifulSoup(f, 'xml')
+                v = soup.findAll("annotation", {"verified" : "yes"})    # v - only if verified = yes
+                if len(v) == 0:
+                    not_list.append(os.path.splitext(file_name)[0])   # not used
+                else: 
+                    verified_list.append(os.path.splitext(file_name)[0])
+        except:
+            print ("bad file:", file_name)
     return verified_list, not_list
 
 
