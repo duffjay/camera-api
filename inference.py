@@ -53,6 +53,7 @@ def is_area_valid(region_id, area_limits, area):
     - could be door in motion
     '''
     valid = False
+
     # area of gmark detection within min max for given region
     if area >= area_limits[0] and area <= area_limits[1]:
         valid = True
@@ -206,14 +207,46 @@ class RegionDetection():
 
 
 class ModelInference():
-    def __init__(self, class_array, prob_array, bbox_array):
-        self.class_array = class_array
-        self.prob_array = prob_array
-        self.bbox_array = bbox_array
-        self.bbox_center_array = get_centers(self.bbox_array)
-        self.bbox_area_array = area(self.bbox_array)
+    '''
+    take the raw output from the model
+    - reduce - keeping only the objects > threshold probability
+
+    data is structure that an inference can be multiple images:
+      input = (n, h, w, c)
+    
+    so, the output needs to be for the index 0 image
+    '''
+    # signature was changed with tf24
+    def __init__(self, output_dict, threshold):
+
+        bbox_array = output_dict['detection_boxes'][0].numpy()
+        class_array = output_dict['detection_classes'][0].numpy().astype(np.int32)
+        prob_array = output_dict['detection_scores'][0].numpy()
+        # how many relevant detections - greater than threshold
+        detection_count = ( prob_array > threshold ).sum()
+        reduction_index = np.argwhere((prob_array > threshold) & (prob_array <= 1.0))
+
+        # if there were relevant detections, assign
+        if detection_count > 0:
+            self.detection_count = detection_count 
+            self.class_array = class_array[reduction_index][0]
+            self.prob_array = prob_array[reduction_index][0]
+            self.bbox_array = bbox_array[reduction_index][0]
+            self.bbox_center_array = get_centers(self.bbox_array)
+            self.bbox_area_array = area(self.bbox_array)
+
+        else:
+            # else set to None
+            self.detection_count = 0 
+            self.class_array = None
+            self.prob_array = None
+            self.bbox_array = None
+            self.bbox_center_array = None
+            self.bbox_area_array = None
+
     def __str__(self):
         inference_string = f'ModelInference \n\
+        -- det cnt: {self.detection_count}\n\
         -- classes: {self.class_array}\n\
         -- probs:   {self.prob_array}\n\
         -- bbox:    {self.bbox_array}\n\

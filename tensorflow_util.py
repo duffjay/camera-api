@@ -1,4 +1,5 @@
 import re
+import time
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
@@ -55,6 +56,10 @@ def load_image_into_numpy_array(image):
 
 # C O N F I G U R A T I O N
 def configure_tensorflow_model(model_config):
+    '''
+    TF 1.1x
+    mobilenet model
+    '''
     log.info(f'tensorflow model config: {model_config}')
     framework = model_config['model_framework']
     model_path = os.path.join('model', model_config['model_path'])
@@ -76,6 +81,36 @@ def configure_tensorflow_model(model_config):
     log.info(f'Model Framework: {framework}   model input dim: {model_input_dim}   image dim: {model_image_dim}')
     return sess, tensor_dict, image_tensor, model_input_dim, label_map, label_dict
 
+def configure_tf2x_model(model_config):
+    '''
+    TF 2.x
+    model - resenet50 640
+    '''
+    log.info(f'tensorflow model config: {model_config}')
+    framework = model_config['model_framework']
+    model_name = model_config["model_name"]
+    model_path = os.path.join('model', model_config['model_path'])
+    
+    start_time = time.time()
+    tf.keras.backend.clear_session()
+
+    detect_fn = tf.saved_model.load(model_path)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    log.info(f'Model {model_name} Elapsed time: ' + str(elapsed_time) + 's')
+
+    label_map = model_config['label_map']
+    label_dict = label_map_util.get_label_map_dict(label_map, 'id')
+
+    # Model Input Dimensions
+    # - tflite will give it to you, but not tensorflow frozen graph
+    #   so I put it in the config - this is overwriting whatever tflite reported - beware
+    model_input_dim = model_config['model_input_dim']
+    model_image_dim = (model_config['model_input_dim'][1], model_config['model_input_dim'][2])
+    # print ("Model Framework: {}   model input dim: {}   image dim: {}".format(framework, model_input_dim, model_image_dim))
+    # print ("      Label Map: {}".format(label_map))
+    log.info(f'Model Framework: {framework}   model input dim: {model_input_dim}   image dim: {model_image_dim}')
+    return detect_fn, model_input_dim, label_map, label_dict
 
 # NOT TESTE$T
 # TODO - test reolink2model.py
@@ -228,8 +263,14 @@ def get_tf_session(graph):
 # keep only the ones over threshold
 # return ModelInferenceObject
 def convert_output_to_inference_object(output_dict, threshold):
-    scores = output_dict['detection_scores']
-    good_detection_count = len([i for i in scores if i >= threshold])
+    # old tf1.x
+    # scores = output_dict['detection_scores']
+    # good_detection_count = len([i for i in scores if i >= threshold])
+
+    # new tf24
+    scores = output_dict['detection_scores'][0].numpy()
+    good_detection_count = ( scores > threshold ).sum()
+
     # convert ONLY GOOD inferences to numpy
     prob_array = np.array(output_dict['detection_scores'][:good_detection_count])
     class_array = np.array(output_dict['detection_classes'][:good_detection_count])

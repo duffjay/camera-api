@@ -14,8 +14,9 @@ import traceback
 # add the tensorflow models project to the Python path
 # github tensorflow/models
 cwd = os.getcwd()
-models = os.path.abspath(os.path.join(cwd, '..', 'models/research/'))
-slim = os.path.abspath(os.path.join(cwd, '..', 'models/research/slim'))
+HOME = os.path.expanduser('~')
+models = os.path.abspath(os.path.join(HOME, 'projects', 'tensorflow/models/research/'))
+slim = os.path.abspath(os.path.join(  HOME, 'projects', 'tensorflow/models/research/slim'))
 sys.path.append(models)
 sys.path.append(slim)
 
@@ -65,7 +66,12 @@ def main():
 
     # configure the model
     model_config = settings.config["model"]
-    sess, tensor_dict, image_tensor, model_input_dim, label_map, label_dict = tensorflow_util.configure_tensorflow_model(model_config)
+
+    # mobilenet
+    # sess, tensor_dict, image_tensor, model_input_dim, label_map, label_dict = tensorflow_util.configure_tensorflow_model(model_config)
+
+    # tf 2.x
+    detect_fn, model_input_dim, label_map, label_dict = tensorflow_util.configure_tf2x_model(model_config)
 
     # camera config
     # - includes getting the data structures to track detections
@@ -82,9 +88,15 @@ def main():
     consumer_count = 48
     for i in range(consumer_count):
         logger.debug(f'Starting Consumer: {i}')
-        thread = threading.Thread(target=image_consumer.image_consumer, 
-            args=(i, 
-                sess, tensor_dict, image_tensor, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict))
+
+        # tf 1.1x
+        # thread = threading.Thread(target=image_consumer.image_consumer, 
+        #    args=(i, sess, tensor_dict, image_tensor, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict))
+
+        # tf 2.x
+        thread = threading.Thread(target=image_consumer.image_consumer_tf2, 
+            args=(i, detect_fn, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict))
+
         thread.daemon = True
         thread.start()
 

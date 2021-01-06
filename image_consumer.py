@@ -183,8 +183,121 @@ def image_consumer(consumer_id,
                     else:
                         log.debug("      No new objects detected --- not saved")
 
+        except queue.Empty:
+            pass
 
+        except Exception as e:
+            with settings.safe_print:
+                log.error(f'  IMAGE-CONSUMER:!!! ERROR - Exception  Consumer ID: {consumer_id}')
+                log.error(f'  --  image consumer exception: {e}')
+                log.error(traceback.format_exc())
+        
 
+    # stop?
+    if settings.run_state == False:
+        log.info(f'******* image consummer {consumer_id} shutdown *******')
+        
+    
+    return
+
+# Pull images off the imageQueue
+# - produce faceQueue (check the faces in the images)
+def image_consumer_tf2(consumer_id, detect_fn, bbox_stack_lists, bbox_push_lists, model_input_dim, label_dict):
+
+    log.info(f'IMAGE-CONSUMER tf2 started #{consumer_id}')
+        # configuration
+    facial_detection_regions = convert_facial_lists(settings.config["facial_detection_regions"]) # list of lists converted to list of tuple-2  (camera_id, regions_id)
+
+    while True:
+        new_objects = 0             # default to 0
+        try:
+            # Consumer tasks
+            # - once/frame
+            #    - ALL regions of the frame
+            data = settings.imageQueue.get(block=False)
+            camera_id, camera_name, image_time, np_images, is_color = data
+            pushed_to_face_queue = False
+            start = time.perf_counter()
+
+            # loop through the regions in the frame
+            for region_id, np_image in enumerate(np_images):
+                orig_image = np_image.copy()     # np_image will become inference image - it's NOT immutable
+                np_image_expanded = np.expand_dims(np_image, axis=0)
+
+                # -- run model
+                output_dict = detect_fn(np_image_expanded)
+                # Convert good detections to ModelInference object
+                inf = inference.ModelInference(output_dict, settings.inference_threshold)
+
+                # check for new detections
+                # - per camera - per region 
+                det = None              # you need None, if saving inferences (no detection) on all images
+                if inf.detection_count > 0:
+                    # need bbox_array as a numpy
+                    log.debug(f'image_consumer#{consumer_id} - cam#{camera_id}  reg#{region_id}  bbox_stack_list len: {len(bbox_stack_lists)}')
+                    log.debug(f'-- bbox_stack_lists[{camera_id}] => bbox_stack_list')
+                    log.debug(f'-- bbox_stack_list: {bbox_stack_lists[camera_id]}')
+                    with settings.safe_stack_update:
+                        new_objects, dup_objects = tensorflow_util.identify_new_detections(image_time,
+                            settings.iou_threshold, camera_id, region_id, inf.bbox_array, bbox_stack_lists[camera_id], bbox_push_lists[camera_id])
+                # D E T E C T I O N  class
+                # - create a detection & update home_status
+                det = inference.RegionDetection(image_time, camera_id, region_id, is_color, inf.detection_count, new_objects, inf)
+                # update regardless
+                with settings.safe_status_update:
+                    # - - - - - - - UPDATING status & history - - - - - - - -
+                    #   called as a per camera:region function
+                    settings.home_status.update_from_detection(det)
+                
+                # display - 
+                # NOTE - Displaying w/ cv2 in multi-threads is a problem!!   1 consumer only if you want to enable this
+                # window_name = '{}-{}'.format(camera_name, region_id)
+                if inf.detection_count > 0:
+                    image = np_image    
+                    inference_image, orig_image_dim, detected_objects = display.inference_to_image( 
+                        image,
+                        inf, 
+                        model_input_dim, label_dict, settings.inference_threshold)
+                    
+                # Facial Detection
+                if settings.facial_detection_enabled == True and inf.detection_count > 0:
+                    submit_face_queue = check_faces(camera_id, region_id, facial_detection_regions, inf.class_array)  # is this region in the regions to check?
+                    if submit_face_queue == True:
+                        settings.faceQueue.put((camera_id, region_id, image_time, np_image))
+                        pushed_to_face_queue = True
+
+                # S A V E
+                # - set up a couple of rules for saving
+                  # default
+                rule_num = 2    # priority camera/region w/ new objects
+                image_name, annotation_name = inference.get_save_detection_path(rule_num, det, 
+                    settings.image_path, settings.annotation_path)
+                log.info(f'image_consumer/get_save_path: {image_name} {annotation_name}')
+                saved = False   # default
+
+                if image_name is not None:
+                    # original image - h: 480  w: 640
+                    saved = True
+                    cv2.imwrite(image_name, orig_image)
+                    # this function generates & saves the XML annotation
+                    # - if no detection, just save image, skip the annotation - there is no annotation
+                    if det is not None:
+                        annotation_xml = annotation.inference_to_xml(settings.image_path, image_name,orig_image_dim, detected_objects, settings.annotation_path )
+            
+                with settings.safe_print:
+                    log.info(
+                        f'  IMAGE-CONSUMER:<< {consumer_id} qsize: {settings.imageQueue.qsize()}'
+                        f'  cam: {camera_name} reg: {region_id} timestamp {image_time}'
+                        f'  inftime:{(time.perf_counter() - start):02.2f} sec  dets: {inf.detection_count} new: {new_objects}  saved: {saved}'
+                    )
+                    if inf.detection_count > 0:
+                        log.debug(f'image_consumer - detection: {det}')
+                    if pushed_to_face_queue == True:
+                        log.info('      pushed to faceQueue')
+                    if saved == True:
+                        log.debug(f"      Saved: stale objects - image_name: {image_name}")
+                    else:
+                        log.debug("      No new objects detected --- not saved")
 
         except queue.Empty:
             pass
@@ -202,3 +315,4 @@ def image_consumer(consumer_id,
         
     
     return
+
