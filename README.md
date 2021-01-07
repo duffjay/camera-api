@@ -22,7 +22,7 @@ pip install tf_slim
 pip install PySocks  
 pip install requests  
 pip install hueber
-
+conda install scikit-image
 
 ## CUDA 10.0 + cuDNN
 Make sure you update ./bashrc  
