@@ -154,7 +154,12 @@ def image_consumer(consumer_id,
                 # - set up a couple of rules for saving
                   # default
                 rule_num = 2    # priority camera/region w/ new objects
-                image_name, annotation_name = inference.get_save_detection_path(rule_num, det, 
+                # check the stream setting - which will force saving the image/annoation
+                stream = False
+                if settings.config['camera'][camera_id]["stream"] == 1:
+                    stream = True
+
+                image_name, annotation_name = inference.get_save_detection_path(rule_num, stream, det, 
                     settings.image_path, settings.annotation_path)
                 log.info(f'image_consumer/get_save_path: {image_name} {annotation_name}')
                 saved = False   # default
@@ -270,7 +275,12 @@ def image_consumer_tf2(consumer_id, detect_fn, bbox_stack_lists, bbox_push_lists
                 # - set up a couple of rules for saving
                   # default
                 rule_num = 2    # priority camera/region w/ new objects
-                image_name, annotation_name = inference.get_save_detection_path(rule_num, det, 
+                # check the stream setting - which will force saving the image/annoation
+                stream = False
+                if settings.config['camera'][camera_id]["stream"] == 1:
+                    stream = True
+
+                image_name, annotation_name = inference.get_save_detection_path(rule_num, stream, det, 
                     settings.image_path, settings.annotation_path)
                 log.info(f'image_consumer/get_save_path: {image_name} {annotation_name}')
                 saved = False   # default

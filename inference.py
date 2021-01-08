@@ -15,6 +15,7 @@ slim = os.path.abspath(os.path.join(cwd, '..', 'models/research/slim'))
 sys.path.append(models)
 sys.path.append(slim)
 
+# !! you can't import settings - circular reference !!
 from object_detection.utils.np_box_ops import area
 
 log = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ def is_on_target(target_center, detection_center, distance_limit, min_angle, max
         f' within_radius: {within_radius}  on_travel_path: {on_travel_path}')
     return within_radius, on_travel_path
 
-def get_save_detection_path(rule_num, det, image_path, annotation_path):
+def get_save_detection_path(rule_num, stream, det, image_path, annotation_path):
     '''
     rule 1 = save only if there are new objects - all cameras
     rule 2 = only priority camera + region, only new objects
@@ -165,6 +166,10 @@ def get_save_detection_path(rule_num, det, image_path, annotation_path):
         if det.camera_id == 5:
             if det.region_id == 1:
                 save = True
+
+    # stream - highest priority rule
+    if stream:
+        save = True
 
     log.info(f"image_consumer/get_save_detection_path -- input:  rule# {rule_num} cam#: {det.camera_id}:{det.region_id} objs: {det.detected_objects} priority - cam/reg: {priority} class: {priority_class}")
 

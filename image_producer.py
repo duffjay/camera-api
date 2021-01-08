@@ -5,10 +5,15 @@ import cv2
 import threading
 import logging
 import queue
+
+from skimage.measure import compare_ssim
+import imutils
+import cv2
+
 import numpy as np
 
+# -- my stuff ---
 import camera_util
-
 import settings
 
 log = logging.getLogger(__name__)
@@ -33,18 +38,26 @@ def compute_sleep_time(frame_elapsed_time, qsize, camera_id):
     log.debug(f'compute_sleep_time - camera_id: {camera_id}  frame_elapsed: {frame_elapsed_time}  qsize: {qsize}  sleep_time: {sleep_time}')
     return sleep_time
 
-def determine_push(push_of_n, push_history):
+def determine_push(push_of_n, push_history, stream):
     '''
     determine if the image should pushed (processed) or skipped 
-
+    push_of_n == 1 means every other value (1 means there must be a False)
+    push_of_n == 0 means every value
     return  true = push, updated history
     '''
-    push = False        # default
-    # expecting history length of 10
-    if True in push_history[-push_of_n:]:
-        push = False
-    else:
+
+    if stream:
         push = True
+    else:
+        push = False        # default
+        # expecting history length of 10
+        if push_of_n == 0:
+            push = True
+        else:
+            if True in push_history[-push_of_n:]:
+                push = False
+            else:
+                push = True
     
     # update the history
     push_history.append(push)
@@ -55,6 +68,10 @@ def determine_push(push_of_n, push_history):
 def image_producer(camera_id, camera_config, camera_snapshot_times):
     '''
     There is one (1) producer per camera
+
+    speed - the put time (in the log) must be < than the snapshot period or you'll get H264 decode errors.
+    e.g.    put time = 0.35 < (2 fps = 0.5 sec period) 
+            don't turn the cameras above 2 frames/sec
     '''
     # create a history - initially all False, to set up the ability to keep only a small portion
     push_history = [False, False, False, False, False, False, False, False, False, False]
@@ -62,6 +79,10 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
     if settings.imageQueue.qsize() > 0:
         push_of_n = int(settings.imageQueue.qsize()/5) + 1
 
+    # setup consecutive image comparison
+    prev_frame_gray = None
+    image_difference_threshold = float(camera_config["image_difference_threshold"])
+    score = 0.0   # first time through, you need a value
 
     stream = False
     if camera_config["stream"] == 1:
@@ -71,19 +92,28 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
     # if camera_config['mfr'] == 'Honeywell':
     video_stream = camera_util.open_video_stream(camera_id, camera_config, stream)
 
-    while True:
+    # use the operational attribute to turn off a camera
+    while camera_config["operational"] == 1:
         start_time = time.perf_counter()
+        image_time = int(time.time() * 10)  # multiply time x 10 to pick up 10ths
 
-        # Honeywell
-        # if camera_config['mfr'] == 'Honeywell':
+        # get 'should push' based on previous images processed
+        # - it's better to drop then here from the video stream
+        should_push, push_history = determine_push(push_of_n, push_history, stream)
+
+        # get frame and compare
         frame = camera_util.get_camera_full(camera_id, video_stream)
-
-        should_push, push_history = determine_push(push_of_n, push_history)
-        with settings.safe_print:
-            log.debug (f"  IMAGE-PRODUCER:>>{camera_id} {should_push} {push_history}")
-
-        if should_push:
+        if frame is not None and should_push:
+            # process & resize the frame => np_images
             camera_name, np_images, is_color = camera_util.get_camera_regions_from_full(frame, camera_id, camera_config, stream)
+
+            # is the full image different?
+            new_frame_gray = cv2.cvtColor(np_images[0], cv2.COLOR_BGR2GRAY)
+            image_different = True      # default, if the prev is None, this will override
+            if prev_frame_gray is not None:
+                (score, diff) = compare_ssim(prev_frame_gray, new_frame_gray, full=True)
+                if score > image_difference_threshold:
+                    image_different = False
 
             # Reolink Snapshot
             # if camera_config['mfr'] == 'Reolink':
@@ -92,16 +122,25 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
             snapshot_elapsed =  time.perf_counter() - camera_snapshot_times[camera_id]      # elapsed time between snapshots
             camera_snapshot_times[camera_id] = time.perf_counter()                          # update the time == start time for the next snapshot
             # pushes to the stack if there was a frame captured
-            if np_images is not None:
-                image_time = int(time.time() * 10)  # multiply time x 10 to pick up 10ths
+            with settings.safe_print:
+                log.info (f"  IMAGE-PRODUCER:>>{camera_id}v {image_time} -- stream: {stream} Image Diff Score: {score:0.3f} {image_different} seq_should:{should_push} {push_history}")
+
+            # push the images to the queue
+            # - can't be None
+            # - must be different -or- stream
+            if np_images is not None and (image_different or stream):
+                
                 settings.imageQueue.put((camera_id, camera_name, image_time, np_images, is_color))
+                prev_frame_gray = new_frame_gray    # only update previous if it was actually pushed to the stack
+                                                    # to prevent a slow moving situation where you never detect a sufficient diff
+                total_put_time = time.perf_counter() -start_time
                 with settings.safe_print:
-                    log_msg = "  IMAGE-PRODUCER:>>{} np_images: {}  {:02.2f} secs  stream: {}".format(camera_name, np_images.shape, snapshot_elapsed, stream)
-                    log.info(log_msg)
+                    log.info(f"  IMAGE-PRODUCER:>>{camera_id}^ put time: {total_put_time:02.2f} np_images: {np_images.shape}  {snapshot_elapsed:02.2f} secs  stream: {stream}")
             else:
                 with settings.safe_print:
-                    log.info(f"  IMAGE-PRODUCER:--{camera_name } np_images: None")
-
+                    log.info(f"  IMAGE-PRODUCER:>>{camera_id}^ --not pushed-- np_images: {type(np_images)} difference score: {score}")
+        else:
+            log.info(f'  IMAGE-PRODUCER:>>{camera_id}^ frame:  {type(frame)}  should push: {should_push} ')
 
         # stop?        
         if settings.run_state == False:

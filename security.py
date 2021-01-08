@@ -85,7 +85,7 @@ def main():
     # !!! Cannot display multi-threaded - must have just 1 display !!!
     #     Thus, consumer count must = 1
     #     watch the queue size as it runs
-    consumer_count = 48
+    consumer_count = 64
     for i in range(consumer_count):
         logger.debug(f'Starting Consumer: {i}')
 
