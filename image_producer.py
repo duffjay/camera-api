@@ -123,7 +123,7 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
             camera_snapshot_times[camera_id] = time.perf_counter()                          # update the time == start time for the next snapshot
             # pushes to the stack if there was a frame captured
             with settings.safe_print:
-                log.info (f"  IMAGE-PRODUCER:>>{camera_id}v {image_time} -- stream: {stream} Image Diff Score: {score:0.3f} {image_different} seq_should:{should_push} {push_history}")
+                log.info (f"  IMAGE-PRODUCER:>>{camera_id}v {image_time} -- stream: {stream} Image Diff Score: {score:0.3f} push_of_n: {push_of_n} {image_different} seq_should:{should_push} {push_history}")
 
             # push the images to the queue
             # - can't be None

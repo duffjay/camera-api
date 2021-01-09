@@ -171,7 +171,7 @@ def get_save_detection_path(rule_num, stream, det, image_path, annotation_path):
     if stream:
         save = True
 
-    log.info(f"image_consumer/get_save_detection_path -- input:  rule# {rule_num} cam#: {det.camera_id}:{det.region_id} objs: {det.detected_objects} priority - cam/reg: {priority} class: {priority_class}")
+    log.info(f"image_consumer/get_save_detection_path -- input:  stream: {stream} rule# {rule_num} cam#: {det.camera_id}:{det.region_id} objs: {det.detected_objects} priority - cam/reg: {priority} class: {priority_class}")
 
     if save == True:
     # base name == sssssss-camera_id-region_id-c/g

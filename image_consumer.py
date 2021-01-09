@@ -257,12 +257,12 @@ def image_consumer_tf2(consumer_id, detect_fn, bbox_stack_lists, bbox_push_lists
                 # display - 
                 # NOTE - Displaying w/ cv2 in multi-threads is a problem!!   1 consumer only if you want to enable this
                 # window_name = '{}-{}'.format(camera_name, region_id)
-                if inf.detection_count > 0:
+                if True:  #inf.detection_count > 0:
                     image = np_image    
-                    inference_image, orig_image_dim, detected_objects = display.inference_to_image( 
+                    inference_image, orig_image_dim, detected_objects_list = display.inference_to_image( 
                         image,
                         inf, 
-                        model_input_dim, label_dict, settings.inference_threshold)
+                        model_input_dim, label_dict, settings.inference_threshold) 
                     
                 # Facial Detection
                 if settings.facial_detection_enabled == True and inf.detection_count > 0:
@@ -291,8 +291,15 @@ def image_consumer_tf2(consumer_id, detect_fn, bbox_stack_lists, bbox_push_lists
                     cv2.imwrite(image_name, orig_image)
                     # this function generates & saves the XML annotation
                     # - if no detection, just save image, skip the annotation - there is no annotation
+                    # !! warning - stupidy alert !!
+                    #   don't confuse det.detected_objects = a count, int
+                    #                 detected_objects, now detected_object_list, is a list of objects
+                    #   the nameing is similar and confusing
+
                     if det is not None:
-                        annotation_xml = annotation.inference_to_xml(settings.image_path, image_name,orig_image_dim, detected_objects, settings.annotation_path )
+                        annotation_xml = annotation.inference_to_xml(settings.image_path, image_name,orig_image_dim, detected_objects_list, settings.annotation_path )
+                    else:
+                        print (f"image_consumer - det is None -- this should not occur")
             
                 with settings.safe_print:
                     log.info(

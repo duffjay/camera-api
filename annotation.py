@@ -54,9 +54,10 @@ def inference_to_xml(image_dir, image_basename, orig_image_dim, detected_objects
     objects_xml_string = make_objects_xml_string(detected_objects)
     annotation_xml_string = make_annotation_xml_string(image_dir, image_basename, orig_image_dim, 
         objects_xml_string, verified_str)
-    
+
     # write to file
     annotation_basename = os.path.splitext(image_basename)[0] + '.xml'
+
     with open(os.path.join(annotation_dir, annotation_basename), 'w') as f:
         f.write(annotation_xml_string)
     return annotation_xml_string
