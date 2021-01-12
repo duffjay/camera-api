@@ -218,6 +218,7 @@ def get_reolink_rtsp(config):
     pw = config['password']
     ip = config['ip']
     url = f"rtsp://{usr}:{pw}@{ip}:554//h264Preview_01_main"
+    # url = f"rtsp://{usr}:{pw}@{ip}:554//h264Preview_02_main"
     return url
 
 def get_reolink_snapshot(url, username, password):
@@ -272,10 +273,10 @@ def extract_regions(config, camera_id, image, is_color):
         # extract (crop it out)
         regional_image = image[ymin:ymax, xmin:xmax]
         # resize to 480x640 -- but it's (width, height) !!
-        width = 640
-        height = 480
+        width = int(settings.config["model_input_width"])
+        height = int(settings.config["model_input_height"])
         dim = (width, height)
-        # resize image
+        # resize image -- really is width, height!! verified 3x
         resized_image = cv2.resize(regional_image, dim, interpolation = cv2.INTER_AREA)
 
         #  auto correct (but not the raw full image - its already correct)

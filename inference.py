@@ -98,11 +98,11 @@ def get_save_detection_path(rule_num, stream, det, image_path, annotation_path):
     priority = False
     priority_class = False
 
-    # camera 6 = side yard included
+    # set camera = False, it won't save images
     camera_priority_dict = {
         0 : True, 
         1 : True,
-        2 : False,
+        2 : True,
         3 : True,
         4 : True,
         5 : True,

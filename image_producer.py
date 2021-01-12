@@ -6,7 +6,6 @@ import threading
 import logging
 import queue
 
-from skimage.measure import compare_ssim
 import imutils
 import cv2
 
@@ -80,7 +79,7 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
         push_of_n = int(settings.imageQueue.qsize()/5) + 1
 
     # setup consecutive image comparison
-    prev_frame_gray = None
+    prev_frame = np.zeros((settings.config["model_input_height"], settings.config["model_input_width"], 3))
     image_difference_threshold = float(camera_config["image_difference_threshold"])
     score = 0.0   # first time through, you need a value
 
@@ -93,6 +92,7 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
     video_stream = camera_util.open_video_stream(camera_id, camera_config, stream)
 
     # use the operational attribute to turn off a camera
+    first_loop = True
     while camera_config["operational"] == 1:
         start_time = time.perf_counter()
         image_time = int(time.time() * 10)  # multiply time x 10 to pick up 10ths
@@ -106,33 +106,29 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
         if frame is not None and should_push:
             # process & resize the frame => np_images
             camera_name, np_images, is_color = camera_util.get_camera_regions_from_full(frame, camera_id, camera_config, stream)
+            # append prev frame gray + np_images = old frame, new frame + regions
+            #  - expand_dims to go from (h,w,c) => (1,h,w,c) so you can append
+            if first_loop:
+                prev_frame = np_images[0]
+                first_loop = False
 
-            # is the full image different?
-            new_frame_gray = cv2.cvtColor(np_images[0], cv2.COLOR_BGR2GRAY)
-            image_different = True      # default, if the prev is None, this will override
-            if prev_frame_gray is not None:
-                (score, diff) = compare_ssim(prev_frame_gray, new_frame_gray, full=True)
-                if score > image_difference_threshold:
-                    image_different = False
-
-            # Reolink Snapshot
-            # if camera_config['mfr'] == 'Reolink':
-            #     camera_name, np_images, is_color = camera_util.get_camera_regions(camera_id, camera_config, stream)
+            np_images = np.append(np.expand_dims(prev_frame, axis=0), np_images,  axis = 0)
 
             snapshot_elapsed =  time.perf_counter() - camera_snapshot_times[camera_id]      # elapsed time between snapshots
             camera_snapshot_times[camera_id] = time.perf_counter()                          # update the time == start time for the next snapshot
             # pushes to the stack if there was a frame captured
             with settings.safe_print:
-                log.info (f"  IMAGE-PRODUCER:>>{camera_id}v {image_time} -- stream: {stream} Image Diff Score: {score:0.3f} push_of_n: {push_of_n} {image_different} seq_should:{should_push} {push_history}")
+                log.info (f"  IMAGE-PRODUCER:>>{camera_id}v {image_time} -- stream: {stream} push_of_n: {push_of_n} seq_should:{should_push} {push_history}")
 
             # push the images to the queue
             # - can't be None
             # - must be different -or- stream
-            if np_images is not None and (image_different or stream):
-                
+            if np_images is not None:
                 settings.imageQueue.put((camera_id, camera_name, image_time, np_images, is_color))
-                prev_frame_gray = new_frame_gray    # only update previous if it was actually pushed to the stack
-                                                    # to prevent a slow moving situation where you never detect a sufficient diff
+
+                # old = [0], new = [1]
+                prev_frame = np_images[1]
+
                 total_put_time = time.perf_counter() -start_time
                 with settings.safe_print:
                     log.info(f"  IMAGE-PRODUCER:>>{camera_id}^ put time: {total_put_time:02.2f} np_images: {np_images.shape}  {snapshot_elapsed:02.2f} secs  stream: {stream}")

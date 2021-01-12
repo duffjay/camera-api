@@ -1,7 +1,7 @@
-rm snapshot/*.xml
-rm snapshot/*.jpg
+rm -rf snapshot/*.xml
+rm -rf snapshot/*.jpg
 #
-rm -r trash
+rm -rf trash
 mkdir trash
 #
 rm -r stream
@@ -14,9 +14,9 @@ mkdir stream/cam4
 mkdir stream/cam5
 mkdir stream/cam6
 #
-rm -r faces
+rm -rf faces
 mkdir faces
 #
-rm *.log*
+rm -rf *.log*
 
 
