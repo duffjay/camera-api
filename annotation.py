@@ -4,6 +4,7 @@ def make_objects_xml_string(detected_objects):
     objects_xml_string = ''
     for obj in detected_objects:
         class_name = obj[1]
+        score = obj[2]
         xmin = obj[3]
         ymin = obj[4]
         xmax = obj[5]
@@ -13,13 +14,14 @@ def make_objects_xml_string(detected_objects):
         <pose>Unspecified</pose>
         <truncated>0</truncated>
         <difficult>0</difficult>
+        <score>{}</score>
         <bndbox>
             <xmin>{}</xmin>
             <ymin>{}</ymin>
             <xmax>{}</xmax>
             <ymax>{}</ymax>
         </bndbox>
-    </object>""".format(class_name, xmin, ymin, xmax, ymax)
+    </object>""".format(class_name, score, xmin, ymin, xmax, ymax)
     return objects_xml_string
 
 

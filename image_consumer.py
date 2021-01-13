@@ -7,7 +7,7 @@ import queue
 import logging
 import numpy as np
 import traceback
-from skimage.measure import compare_ssim
+from skimage.metrics import structural_similarity as ssim
 
 # add the tensorflow models project to the Python path
 # github tensorflow/models
@@ -231,7 +231,8 @@ def image_consumer_tf2(consumer_id, detect_fn, bbox_stack_lists, bbox_push_lists
             # each loop can be a new camera id - so you need to keep getting value from config
             image_difference_threshold = float(settings.config["camera"][camera_id]["image_difference_threshold"])
             image_different = True      # default, if the prev is None, this will override
-            (score, diff) = compare_ssim(prev_frame_gray, new_frame_gray, full=True)
+            (score, diff) = ssim(prev_frame_gray, new_frame_gray, full=True)
+            # old: (score, diff) = compare_ssim(prev_frame_gray, new_frame_gray, full=True)
             if score > image_difference_threshold:
                 image_different = False
 

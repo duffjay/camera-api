@@ -232,11 +232,14 @@ class ModelInference():
         reduction_index = np.argwhere((prob_array > threshold) & (prob_array <= 1.0))
 
         # if there were relevant detections, assign
+        # gotta reshape,  e.g. if there are 4 objects
+        # class.shape = (4,1)  --you want--> (4)
+        # bbox = (4,1,4)       --you want--> (4,4)
         if detection_count > 0:
             self.detection_count = detection_count 
-            self.class_array = class_array[reduction_index][0]
-            self.prob_array = prob_array[reduction_index][0]
-            self.bbox_array = bbox_array[reduction_index][0]
+            self.class_array = class_array[reduction_index].reshape((detection_count))
+            self.prob_array = prob_array[reduction_index].reshape((detection_count))
+            self.bbox_array = bbox_array[reduction_index].reshape((detection_count,4))
             self.bbox_center_array = get_centers(self.bbox_array)
             self.bbox_area_array = area(self.bbox_array)
 
@@ -256,5 +259,5 @@ class ModelInference():
         -- probs:   {self.prob_array}\n\
         -- bbox:    {self.bbox_array}\n\
         -- centers: {self.bbox_center_array}\n\
-        -- areas:   {self.bbox_area_array}  '
+        -- areas:   {self.bbox_area_array} '
         return inference_string
