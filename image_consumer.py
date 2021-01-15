@@ -83,6 +83,31 @@ def is_save_inference(rule_num, camera_id, region_id, num_detections, new_object
     log.debug(f'image_consumer/is_save_inference -- rule# {rule_num}  {camera_id}  {region_id}  {num_detections}  {new_objects} ==> {save_inference}')
     return save_inference
 
+def is_frame_different(consumer_id, camera_id, np_images):
+    image_different = True  # default
+
+    # each loop can be a new camera id - so you need to keep getting value from config
+    image_difference_threshold = float(settings.config["camera"][camera_id]["image_difference_threshold"])
+    orig_value = image_difference_threshold
+
+    if settings.imageQueue.qsize() >= 5:
+        image_difference_threshold = image_difference_threshold * (1.00 - settings.imageQueue.qsize()/(5 * 100))
+
+
+    # check to verify if the image is different than previous frames
+    prev_frame_gray = cv2.cvtColor(np_images[0], cv2.COLOR_BGR2GRAY)
+    new_frame_gray = cv2.cvtColor(np_images[1], cv2.COLOR_BGR2GRAY)
+
+    (score, diff) = ssim(prev_frame_gray, new_frame_gray, full=True)
+    # old: (score, diff) = compare_ssim(prev_frame_gray, new_frame_gray, full=True)
+    if score > image_difference_threshold:
+        image_different = False
+
+    log.info(f'  IMAGE-CONSUMER:<< {consumer_id} cam: {camera_id} qsize: {settings.imageQueue.qsize()}'
+        f' throttled -- diff threshold: {orig_value} -> {image_difference_threshold:0.3f}'
+        f' -- image_different: {image_different} {score:0.3f}')
+
+    return image_different, score, image_difference_threshold
 
 # Pull images off the imageQueue
 # - produce faceQueue (check the faces in the images)
@@ -225,18 +250,8 @@ def image_consumer_tf2(consumer_id, detect_fn, bbox_stack_lists, bbox_push_lists
             pushed_to_face_queue = False
             start = time.perf_counter()
 
-            # check to verify if the image is different than previous frames
-            prev_frame_gray = cv2.cvtColor(np_images[0], cv2.COLOR_BGR2GRAY)
-            new_frame_gray = cv2.cvtColor(np_images[1], cv2.COLOR_BGR2GRAY)
-            # each loop can be a new camera id - so you need to keep getting value from config
-            image_difference_threshold = float(settings.config["camera"][camera_id]["image_difference_threshold"])
-            image_different = True      # default, if the prev is None, this will override
-            (score, diff) = ssim(prev_frame_gray, new_frame_gray, full=True)
-            # old: (score, diff) = compare_ssim(prev_frame_gray, new_frame_gray, full=True)
-            if score > image_difference_threshold:
-                image_different = False
-
-            if image_different:
+            image_different, score, threshold = is_frame_different(consumer_id, camera_id, np_images)
+            if image_different == True:
                 # strip off the previous - don't send it to the model
                 np_images = np_images[1:]
                 # loop through the regions in the frame
@@ -320,7 +335,7 @@ def image_consumer_tf2(consumer_id, detect_fn, bbox_stack_lists, bbox_push_lists
                     with settings.safe_print:
                         log.info(
                             f'  IMAGE-CONSUMER:<< {consumer_id} qsize: {settings.imageQueue.qsize()}'
-                            f'  cam: {camera_id} diff: {score:0.3f} reg: {region_id} timestamp {image_time}'
+                            f'  cam: {camera_id} diff: {score:0.3f}/{threshold:0.3f} reg: {region_id} timestamp {image_time}'
                             f'  inftime:{(time.perf_counter() - start):02.2f} sec  dets: {inf.detection_count} new: {new_objects}  saved: {saved}'
                         )
                         if inf.detection_count > 0:
@@ -335,7 +350,7 @@ def image_consumer_tf2(consumer_id, detect_fn, bbox_stack_lists, bbox_push_lists
             else:
                 # image is NOT different
                 with settings.safe_print:
-                    log.info(f'  IMAGE-CONSUMER:<< {consumer_id} {camera_id} No difference in image, diff score: {score}')
+                    log.info(f'  IMAGE-CONSUMER:<< {consumer_id} {camera_id} No difference in image, diff score: {score} {threshold}')
 
 
         except queue.Empty:

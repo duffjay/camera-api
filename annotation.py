@@ -14,7 +14,7 @@ def make_objects_xml_string(detected_objects):
         <pose>Unspecified</pose>
         <truncated>0</truncated>
         <difficult>0</difficult>
-        <score>{}</score>
+        <score>{:0.3f}</score>
         <bndbox>
             <xmin>{}</xmin>
             <ymin>{}</ymin>
