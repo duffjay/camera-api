@@ -18,5 +18,11 @@ rm -rf faces
 mkdir faces
 #
 rm -rf *.log*
+#
+rm -rf faces
+mkdir faces
+#
+rm -rf status
+mkdir status
 
 

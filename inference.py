@@ -107,7 +107,11 @@ def get_save_detection_path(rule_num, stream, det, image_path, annotation_path):
         4 : True,
         5 : True,
         6 : True,
-        7 : True}
+        7 : True,
+        8 : True,
+        9 : True,
+        10 : True
+        }
     # no problem adding regions that don't exist
     region_priority_dict = {
         0 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
@@ -117,7 +121,10 @@ def get_save_detection_path(rule_num, stream, det, image_path, annotation_path):
         4 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
         5 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
         6 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
-        7 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True}
+        7 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+        8 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+        9 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True},
+       10 : {0: True, 1 : True, 2 : True, 3 : True, 4 : True, 5 : True, 6 : True, 7 : True}
     }
 
     # TODO

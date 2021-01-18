@@ -37,6 +37,7 @@ def compute_sleep_time(frame_elapsed_time, qsize, camera_id):
     log.debug(f'compute_sleep_time - camera_id: {camera_id}  frame_elapsed: {frame_elapsed_time}  qsize: {qsize}  sleep_time: {sleep_time}')
     return sleep_time
 
+
 def determine_push(push_of_n, push_history, stream):
     '''
     determine if the image should pushed (processed) or skipped 
@@ -75,8 +76,7 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
     # create a history - initially all False, to set up the ability to keep only a small portion
     push_history = [False, False, False, False, False, False, False, False, False, False]
     push_of_n = int(camera_config["push_of_n"])
-    if settings.imageQueue.qsize() > 0:
-        push_of_n = int(settings.imageQueue.qsize()/5) + 1
+    print (f'---- {camera_id} {camera_config} {push_of_n}')
 
     # setup consecutive image comparison
     prev_frame = np.zeros((settings.config["model_input_height"], settings.config["model_input_width"], 3))
@@ -87,8 +87,6 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
     if camera_config["stream"] == 1:
         stream = True
 
-    # if Honeywell, open the video stream
-    # if camera_config['mfr'] == 'Honeywell':
     video_stream = camera_util.open_video_stream(camera_id, camera_config, stream)
 
     # use the operational attribute to turn off a camera
@@ -99,7 +97,13 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
 
         # get 'should push' based on previous images processed
         # - it's better to drop then here from the video stream
-        should_push, push_history = determine_push(push_of_n, push_history, stream)
+        if settings.imageQueue.qsize() > 0:
+            adj_push_of_n = push_of_n + int(settings.imageQueue.qsize()/5) + 1
+            log.info(f'  IMAGE-PRODUCER:>>{camera_id} push_of_n throttled:  {push_of_n} -> {adj_push_of_n}')
+        else:
+            adj_push_of_n = push_of_n
+
+        should_push, push_history = determine_push(adj_push_of_n, push_history, stream)
 
         # get frame and compare
         frame = camera_util.get_camera_full(camera_id, video_stream)
@@ -118,7 +122,7 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
             camera_snapshot_times[camera_id] = time.perf_counter()                          # update the time == start time for the next snapshot
             # pushes to the stack if there was a frame captured
             with settings.safe_print:
-                log.info (f"  IMAGE-PRODUCER:>>{camera_id}v {image_time} -- stream: {stream} push_of_n: {push_of_n} seq_should:{should_push} {push_history}")
+                log.info (f"  IMAGE-PRODUCER:>>{camera_id:02}v {image_time} -- stream: {stream} push_of_n: {push_of_n}:{adj_push_of_n} seq_should:{should_push} {push_history}")
 
             # push the images to the queue
             # - can't be None
@@ -131,12 +135,19 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
 
                 total_put_time = time.perf_counter() -start_time
                 with settings.safe_print:
-                    log.info(f"  IMAGE-PRODUCER:>>{camera_id}^ put time: {total_put_time:02.2f} np_images: {np_images.shape}  {snapshot_elapsed:02.2f} secs  stream: {stream}")
+                    log.info(f"  IMAGE-PRODUCER:>>{camera_id:02}^ put time: {total_put_time:02.2f} np_images: {np_images.shape}  {snapshot_elapsed:02.2f} secs  stream: {stream}")
             else:
                 with settings.safe_print:
-                    log.info(f"  IMAGE-PRODUCER:>>{camera_id}^ --not pushed-- np_images: {type(np_images)} difference score: {score}")
+                    log.info(f"  IMAGE-PRODUCER:>>{camera_id:02}^ --not pushed-- np_images: {type(np_images)} difference score: {score}")
         else:
-            log.info(f'  IMAGE-PRODUCER:>>{camera_id}^ frame:  {type(frame)}  should push: {should_push} ')
+            log.info(f'  IMAGE-PRODUCER:>>{camera_id:02}^ video_stream: {type(video_stream)} frame:  {type(frame)}  should push: {should_push} ')
+            if frame is None:
+                time.sleep(3)
+
+            if video_stream is None:
+                video_stream = camera_util.open_video_stream(camera_id, camera_config, stream)
+                if video_stream is not None:
+                    log.info(f"  IMAGE-PRODUCER:>>{camera_id:02} video stream re-acquired")
 
         # stop?        
         if settings.run_state == False:
