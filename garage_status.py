@@ -235,9 +235,11 @@ def get_car_inside_status(home_status, region_id, det):
                 car_status = car_inside_present
 
 
-        log.info(f'GarageStatus.update car_inside: idx = {idx} -- {det.image_time} {det.camera_id} {det.region_id} center: {center}  area: {area}')
-        log.info(f'GarageStatus.update car_inside: idx = {idx} -- {det.image_time} area_valid: {area_valid}  within radius: {within_radius}'
-            f'  on path: {on_travel_path}  car inside status: {car_status}')
+            log.info(f'GarageStatus.update car_inside: idx = {idx} -- {det.image_time} {det.camera_id} {det.region_id} center: {center}  area: {area}')
+            log.info(f'GarageStatus.update car_inside: idx = {idx} -- {det.image_time} area_valid: {area_valid}  within radius: {within_radius}'
+                f'  on path: {on_travel_path}  car inside status: {car_status}')
+        else:
+            log.warning(f'GarageStatus.update car_inside: idx = {idx} -- {det.image_time} {det.camera_id} {det.region_id} -- invalid area')
 
         if car_status >= 0:
                 history_row_num = status.get_history_np_row(settings.configured_history_map, det.camera_id, det.region_id, "car")

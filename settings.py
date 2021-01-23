@@ -67,8 +67,10 @@ def init(config_filename):
     global last_recognized_face_id
     global last_recognized_face_time
 
+    facial_detection_enabled = False
     if config["facial_detection_enabled"] == "True":
         facial_detection_enabled = True 
+
     last_recognized_face_id = 0
     last_recognized_face_time = 0.0
 

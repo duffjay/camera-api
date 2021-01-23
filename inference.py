@@ -185,7 +185,7 @@ def get_save_detection_path(rule_num, stream, det, image_path, annotation_path):
         color_code = 'c'            # g == grayscale, c == color
         if det.is_color == 0:
             color_code = 'g'                                
-        base_name = '{}-{}-{}-{}'.format(det.image_time, det.camera_id, det.region_id, color_code)   
+        base_name = f'cam{det.camera_id:02}/{det.image_time}-{det.camera_id}-{det.region_id}-{color_code}'  
         image_name = os.path.join(image_path,  base_name + '.jpg')
         annotation_name = os.path.join(annotation_path,  base_name + '.xml')
         log.info(f"image_consumer/get_save_detection_path -- saving: {image_name} {image_name} {annotation_name}")

@@ -162,7 +162,9 @@ def image_consumer_tf2(consumer_id, detect_fn, bbox_stack_lists, bbox_push_lists
                     with settings.safe_status_update:
                         # - - - - - - - UPDATING status & history - - - - - - - -
                         #   called as a per camera:region function
+                        log.info(f'image_consumer.update_from_detection: {camera_id:02}-{consumer_id:03}  initiated')
                         settings.home_status.update_from_detection(det)
+                        log.info(f'image_consumer.update_from_detection: {camera_id:02}-{consumer_id:03}  completed')
                     
                     # display - 
                     # NOTE - Displaying w/ cv2 in multi-threads is a problem!!   1 consumer only if you want to enable this
@@ -238,7 +240,7 @@ def image_consumer_tf2(consumer_id, detect_fn, bbox_stack_lists, bbox_push_lists
 
         except Exception as e:
             with settings.safe_print:
-                log.error(f'  IMAGE-CONSUMER:!!! ERROR - Exception  Consumer ID: {consumer_id}')
+                log.error(f'  IMAGE-CONSUMER:!!! ERROR - Exception  Consumer ID: {camera_id}:{consumer_id}')
                 log.error(f'  --  image consumer exception: {e}')
                 log.error(traceback.format_exc())
         

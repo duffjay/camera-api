@@ -94,17 +94,26 @@ status_history_dict = {
         {"id" : 1, "name" : "right street",   "history" : {"car" : 0, "person" : 0}},
         {"id" : 2, "name" : "back door",      "history" : {"car" : 0, "person" : 0}}
         ] },
-    "cam6" : {"id" : 6, "name" : "side yard", "regions" : [ 
+    "cam6" : {"id" : 6, "name" : "front yard", "regions" : [ 
         {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0}},
         {"id" : 1, "name" : "street",         "history" : {"car" : 0, "person" : 0}},
         {"id" : 1, "name" : "power meter",    "history" : {"car" : 0, "person" : 0}},
         {"id" : 2, "name" : "windows",        "history" : {"car" : 0, "person" : 0}}
         ] },
-    "cam7" : {"id" : 7, "name" : "honeywell1", "regions" : [ 
+    "cam7" : {"id" : 7, "name" : "side yard", "regions" : [ 
         {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0}},
         {"id" : 1, "name" : "street",         "history" : {"car" : 0, "person" : 0}},
         {"id" : 1, "name" : "driveway",       "history" : {"car" : 0, "person" : 0}},
         {"id" : 2, "name" : "porch",        "history" : {"car" : 0, "person" : 0}}
+        ] },
+    "cam8" : {"id" : 8, "name" : "basement", "regions" : [ 
+        {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0}},
+        {"id" : 1, "name" : "street",         "history" : {"car" : 0, "person" : 0}},
+        {"id" : 1, "name" : "driveway",       "history" : {"car" : 0, "person" : 0}},
+        {"id" : 2, "name" : "porch",        "history" : {"car" : 0, "person" : 0}}
+        ] },
+    "cam9" : {"id" : 9, "name" : "sun room", "regions" : [ 
+        {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0}}
         ] }
 }
 
