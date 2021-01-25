@@ -88,6 +88,7 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
         stream = True
 
     video_stream = camera_util.open_video_stream(camera_id, camera_config, stream)
+    frame_none_count = 0
 
     # use the operational attribute to turn off a camera
     first_loop = True
@@ -108,6 +109,7 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
         # get frame and compare
         frame = camera_util.get_camera_full(camera_id, video_stream)
         if frame is not None and should_push:
+            frame_none_count = 0
             # process & resize the frame => np_images
             camera_name, np_images, is_color = camera_util.get_camera_regions_from_full(frame, camera_id, camera_config, stream)
             # append prev frame gray + np_images = old frame, new frame + regions
@@ -143,6 +145,14 @@ def image_producer(camera_id, camera_config, camera_snapshot_times):
             log.info(f'  IMAGE-PRODUCER:>>{camera_id:02}^ video_stream: {type(video_stream)} frame:  {type(frame)}  should push: {should_push} ')
             if frame is None:
                 time.sleep(3)
+                frame_none_count = frame_none_count + 1
+                if frame_none_count > 5:
+                    # try resetting the video stream
+                    video_stream = None
+                    log.info(f'  IMAGE-PRODUCER:>>{camera_id:02} frame_none_count: {frame_none_count} resetting vide_stream')
+            else:
+                # frame was good, but should_push == False
+                frame_none_count = 0
 
             if video_stream is None:
                 video_stream = camera_util.open_video_stream(camera_id, camera_config, stream)
