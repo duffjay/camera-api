@@ -114,6 +114,9 @@ status_history_dict = {
         ] },
     "cam9" : {"id" : 9, "name" : "sun room", "regions" : [ 
         {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0}}
+        ] },
+    "cam10" : {"id" : 9, "name" : "indoor2", "regions" : [ 
+        {"id" : 0, "name" : "full",           "history" : {"car" : 0, "person" : 0}}
         ] }
 }
 
